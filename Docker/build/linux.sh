@@ -13,13 +13,13 @@ STATIC_FILES_SERVER=false
 # Parse arguments
 for arg in "$@"; do
   case $arg in
-    -git)               GIT=true ;;
-    -local)             LOCAL=true ;;
-    -all)               ALL=true ;;
-    -authservice)       AUTH_SERVICE=true ;;
-    -server)            SERVER=true ;;
-    -services)          SERVICES=true ;;
-    -staticfilesserver) STATIC_FILES_SERVER=true ;;
+    --git)               GIT=true ;;
+    --local)             LOCAL=true ;;
+    --all)               ALL=true ;;
+    --authservice)       AUTH_SERVICE=true ;;
+    --server)            SERVER=true ;;
+    --services)          SERVICES=true ;;
+    --staticfilesserver) STATIC_FILES_SERVER=true ;;
     *) echo "Unknown option: $arg" && exit 1 ;;
   esac
 done
