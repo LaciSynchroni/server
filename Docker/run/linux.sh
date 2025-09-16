@@ -7,10 +7,10 @@ STOP=false
 
 for arg in "$@"; do
   case $arg in
-    -standalone) STANDALONE=true ;;
-    -sharded)    SHARDED=true ;;
-    -start)      START=true ;;
-    -stop)       STOP=true ;;
+    --standalone) STANDALONE=true ;;
+    --sharded)    SHARDED=true ;;
+    --start)      START=true ;;
+    --stop)       STOP=true ;;
     *) echo "Unknown option: $arg" && exit 1 ;;
   esac
 done
