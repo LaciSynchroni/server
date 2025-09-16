@@ -69,6 +69,25 @@ import_dotenv() {
 
 import_dotenv "./compose/.env.local"
 
+if $STANDALONE; then
+  if [ ! -f config/standalone/base.appsettings.json ]; then
+    echo "Base appsettings not found!"
+    exit 1
+  elif [ ! -f config/standalone/authservice.appsettings.json ]; then
+    echo "Auth service appsettings not found!"
+    exit 1
+  elif [ ! -f config/standalone/files.appsettings.json ]; then
+    echo "Files appsettings not found!"
+    exit 1
+  elif [ ! -f config/standalone/server.appsettings.json ]; then
+    echo "Server appsettings not found!"
+    exit 1
+  elif [ ! -f config/standalone/services.appsettings.json ]; then
+    echo "Services appsettings not found!"
+    exit 1
+  fi
+fi
+
 if $START; then
   if $STANDALONE; then
     echo "🚀 Starting in Standalone mode..."
