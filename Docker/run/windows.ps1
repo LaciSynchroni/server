@@ -40,8 +40,6 @@ function Import-DotEnv {
 
 Import-DotEnv "./compose/.env.local"
 
-echo $Mode
-
 if (!(Test-Path config/standalone/base.appsettings.json ))
 {
     Write-Error "Base appsettings not found!"
