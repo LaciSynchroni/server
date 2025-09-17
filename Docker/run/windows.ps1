@@ -3,8 +3,7 @@ param(
     [switch]$Standalone,
     [switch]$Sharded,
     # Mode
-    [switch]$Start,
-    [switch]$Stop
+    $Mode
 )
 
 function Import-DotEnv {
@@ -40,6 +39,8 @@ function Import-DotEnv {
 }
 
 Import-DotEnv "./compose/.env.local"
+
+echo $Mode
 
 if (!(Test-Path config/standalone/base.appsettings.json ))
 {
@@ -77,7 +78,7 @@ if (-not $Standalone -and -not $Sharded) {
     exit 1
 }
 
-if ($Start) {
+if ($Mode -eq "start") {
     if ($Standalone) {
         Write-Host "Starting in Standalone mode..."
         docker compose -f "$PSScriptRoot/compose/standalone.yml" -p standalone up -d
@@ -87,7 +88,7 @@ if ($Start) {
         docker compose -f "$PSScriptRoot/compose/sharded.yml" -p sharded up -d
     }
 }
-elseif ($Stop) {
+elseif ($Mode -eq "stop") {
     if ($Standalone) {
         Write-Host "Stopping Standalone service..."
         docker compose -f "$PSScriptRoot/compose/standalone.yml" -p standalone stop
@@ -98,7 +99,7 @@ elseif ($Stop) {
     }
 }
 else {
-    # neither -Start nor -Stop supplied
+    # neither Start nor Stop supplied
     if ($Standalone) {
         Write-Host "Running other Standalone action..."
         docker compose -f "$PSScriptRoot/compose/standalone.yml" -p standalone up
