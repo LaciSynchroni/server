@@ -41,6 +41,32 @@ function Import-DotEnv {
 
 Import-DotEnv "./compose/.env.local"
 
+if (!(Test-Path config/standalone/base.appsettings.json ))
+{
+    Write-Error "Base appsettings not found!"
+    exit 1
+}
+if (!(Test-Path config/standalone/authservice.appsettings.json ))
+{
+    Write-Error "Auth service appsettings not found!"
+    exit 1
+}
+if (!(Test-Path config/standalone/files.appsettings.json ))
+{
+    Write-Error "Files appsettings not found!"
+    exit 1
+}
+if (!(Test-Path config/standalone/server.appsettings.json ))
+{
+    Write-Error "Server appsettings not found!"
+    exit 1
+}
+if (!(Test-Path config/standalone/services.appsettings.json ))
+{
+    Write-Error "Services appsettings not found!"
+    exit 1
+}
+
 if ($Standalone -and $Sharded) {
     Write-Error "You cannot use -Standalone and -Sharded together."
     exit 1
