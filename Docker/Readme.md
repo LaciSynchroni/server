@@ -68,13 +68,13 @@ Here are a few examples:
 
 ```bash
 # Start the services in standalone mode
-./linux.sh --standalone --start
+./linux.sh --standalone start
 
 # Start the services in sharded mode
-./linux.sh --sharded --start
+./linux.sh --sharded start
 
 # Stop the services
-./linux.sh --stop
+./linux.sh stop
 
 # Start in the foreground
 ./linux.sh --standalone
@@ -82,13 +82,13 @@ Here are a few examples:
 
 ```ps1
 # Start the services in standalone mode
-.\windows.ps1 -Standalone -Start
+.\windows.ps1 -Standalone start
 
 # Start the services in sharded mode
-.\windows.ps1 -Sharded -Start
+.\windows.ps1 -Sharded start
 
 # Stop the services
-.\windows.ps1 -Stop
+.\windows.ps1 stop
 
 # Start in the foreground
 .\windows.ps1 -Standalone
