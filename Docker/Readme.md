@@ -29,13 +29,13 @@ Here are a few examples:
 
 ```ps1
 # Build all images using local sources
-./windows.ps1 -Local -All
+.\windows.ps1 -Local -All
 
 # Build the server and auth service images using git sources
-./windows.ps1 -Git -Server -AuthService
+.\windows.ps1 -Git -Server -AuthService
 
 # Build the services image using local sources
-./windows.ps1 -Local -Services
+.\windows.ps1 -Local -Services
 ```
 
 
@@ -56,7 +56,7 @@ In your Cloudflare Tunnel, you should configure the following under Public hostn
 Naturally, you can also do the proxying with another service or on your own.
 
 ## 3. Run the Sinus Synchronous Server
-Head to `run` and start the services using either `\.linux.sh` or `\.windows.ps1`.
+Head to `run` and start the services using either `linux.sh` or `windows.ps1`.
 There are two modes, each mutually exclusive:
 - `--standalone` (`-Standalone` for Windows) to run the services as a single instance.
 - `--sharded` (`-Sharded` for Windows) to run the services in a sharded configuration.
@@ -82,14 +82,14 @@ Here are a few examples:
 
 ```ps1
 # Start the services in standalone mode
-./windows.ps1 -Standalone -Start
+.\windows.ps1 -Standalone -Start
 
 # Start the services in sharded mode
-./windows.ps1 -Sharded -Start
+.\windows.ps1 -Sharded -Start
 
 # Stop the services
-./windows.ps1 -Stop
+.\windows.ps1 -Stop
 
 # Start in the foreground
-./windows.ps1 -Standalone
+.\windows.ps1 -Standalone
 ```
