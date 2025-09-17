@@ -61,8 +61,8 @@ There are two modes, each mutually exclusive:
 - `--standalone` (`-Standalone` for Windows) to run the services as a single instance.
 - `--sharded` (`-Sharded` for Windows) to run the services in a sharded configuration.
 
-By supplying `--start` (`-Start` for Windows), the services will be started in the background. To stop them, you can use the `--stop` (`-Stop` for Windows) flag.
-If you do not provide either `--start` or `--stop`, the services will run in the foreground.
+By supplying `start` as a subcommand, the services will be started in the background. To stop them, you can use the `stop` subcommand.
+If you do not provide either `start` or `stop`, the services will run in the foreground.
 
 Here are a few examples:
 
