@@ -4,13 +4,13 @@ services:
     command: ["postgres", "-c", "log_statement=all"]
     restart: always
     environment:
-      POSTGRES_DB: "${SINUS_POSTGRES_DB}"
-      POSTGRES_USER: "${SINUS_POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${SINUS_POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${LACI_POSTGRES_DB}"
+      POSTGRES_USER: "${LACI_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${LACI_POSTGRES_PASSWORD}"
     volumes:
       - postgresql:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${SINUS_POSTGRES_USER} -d ${SINUS_POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${LACI_POSTGRES_USER} -d ${LACI_POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,24 +20,24 @@ services:
     env_file:
       - path: ./.env.local
         required: true
-    command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass ${SINUS_REDIS_PASSWORD}"]
+    command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass ${LACI_REDIS_PASSWORD}"]
     volumes:
       - cache:/data
 
-  sinus-server:
+  laci-server:
     image: ghcr.io/lacisynchroni/server:latest
     restart: on-failure
     environment:
-      SinusSynchronous__CdnFullUrl: "${SINUS_CDNURL}"
-      SinusSynchronous__Jwt: "${SINUS_JWT}"
-      SinusSynchronous__JwtKeyId: "${SINUS_JWT_KEY_ID}"
-      SinusSynchronous__RedisConnectionString: "redis,password=${SINUS_REDIS_PASSWORD}"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${SINUS_POSTGRES_DB};Username=${SINUS_POSTGRES_USER};Password=${SINUS_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
+      LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
+      LaciSynchroni__Jwt: "${LACI_JWT}"
+      LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
+      LaciSynchroni__RedisConnectionString: "redis,password=${LACI_REDIS_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${LACI_POSTGRES_DB};Username=${LACI_POSTGRES_USER};Password=${LACI_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
       DOTNET_USE_POLLING_FILE_WATCHER: 1
     volumes:
-      - ../config/standalone/base.appsettings.json:/opt/SinusSynchronousServer/base.appsettings.json
-      - ../config/standalone/server.appsettings.json:/opt/SinusSynchronousServer/appsettings.json
-      - ../log/server-standalone/:/opt/SinusSynchronousServer/logs/:rw
+      - ../config/standalone/base.appsettings.json:/opt/LaciSynchroni/Server/base.appsettings.json
+      - ../config/standalone/server.appsettings.json:/opt/LaciSynchroni/Server/appsettings.json
+      - ../log/server-standalone/:/opt/LaciSynchroni/Server/logs/:rw
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,67 +47,67 @@ services:
       start_period: 10s
       timeout: 1s
 
-  sinus-services:
+  laci-services:
     image: ghcr.io/lacisynchroni/services:latest
     restart: on-failure
     environment:
-      SinusSynchronous__DiscordBotToken: "${SINUS_DISCORD_TOKEN}"
-      SinusSynchronous__Jwt: "${SINUS_JWT}"
-      SinusSynchronous__JwtKeyId: "${SINUS_JWT_KEY_ID}"
-      SinusSynchronous__RedisConnectionString: "redis,password=${SINUS_REDIS_PASSWORD}"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${SINUS_POSTGRES_DB};Username=${SINUS_POSTGRES_USER};Password=${SINUS_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
+      LaciSynchroni__DiscordBotToken: "${LACI_DISCORD_TOKEN}"
+      LaciSynchroni__Jwt: "${LACI_JWT}"
+      LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
+      LaciSynchroni__RedisConnectionString: "redis,password=${LACI_REDIS_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${LACI_POSTGRES_DB};Username=${LACI_POSTGRES_USER};Password=${LACI_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
       DOTNET_USE_POLLING_FILE_WATCHER: 1
     volumes:
-      - ../config/standalone/base.appsettings.json:/opt/SinusSynchronousServices/base.appsettings.json
-      - ../config/standalone/services.appsettings.json:/opt/SinusSynchronousServices/appsettings.json
-      - ../log/services-standalone/:/opt/SinusSynchronousServices/logs/:rw
+      - ../config/standalone/base.appsettings.json:/opt/LaciSynchroni/Services/base.appsettings.json
+      - ../config/standalone/services.appsettings.json:/opt/LaciSynchroni/Services/appsettings.json
+      - ../log/services-standalone/:/opt/LaciSynchroni/Services/logs/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
       postgres:
         condition: service_healthy
 
-  sinus-auth:
+  laci-auth:
     image: ghcr.io/lacisynchroni/authservice:latest
     restart: on-failure
     environment:
-      SinusSynchronous__PublicOAuthBaseUri: "${SINUS_PUBLIC_OAUTH_BASE_URI}"
-      SinusSynchronous__DiscordOAuthClientSecret: "${SINUS_DISCORD_OAUTH_CLIENT_SECRET}"
-      SinusSynchronous__DiscordOAuthClientId: "${SINUS_DISCORD_OAUTH_CLIENT_ID}"
-      SinusSynchronous__Jwt: "${SINUS_JWT}"
-      SinusSynchronous__JwtKeyId: "${SINUS_JWT_KEY_ID}"
-      SinusSynchronous__RedisConnectionString: "redis,password=${SINUS_REDIS_PASSWORD}"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${SINUS_POSTGRES_DB};Username=${SINUS_POSTGRES_USER};Password=${SINUS_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
+      LaciSynchroni__PublicOAuthBaseUri: "${LACI_PUBLIC_OAUTH_BASE_URI}"
+      LaciSynchroni__DiscordOAuthClientSecret: "${LACI_DISCORD_OAUTH_CLIENT_SECRET}"
+      LaciSynchroni__DiscordOAuthClientId: "${LACI_DISCORD_OAUTH_CLIENT_ID}"
+      LaciSynchroni__Jwt: "${LACI_JWT}"
+      LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
+      LaciSynchroni__RedisConnectionString: "redis,password=${LACI_REDIS_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${LACI_POSTGRES_DB};Username=${LACI_POSTGRES_USER};Password=${LACI_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
       DOTNET_USE_POLLING_FILE_WATCHER: 1
     volumes:
-      - ../config/standalone/base.appsettings.json:/opt/SinusSynchronousAuthService/base.appsettings.json
-      - ../config/standalone/authservice.appsettings.json:/opt/SinusSynchronousAuthService/appsettings.json
-      - ../log/authservice-standalone/:/opt/SinusSynchronousAuthService/logs/:rw
+      - ../config/standalone/base.appsettings.json:/opt/LaciSynchroni/AuthService/base.appsettings.json
+      - ../config/standalone/authservice.appsettings.json:/opt/LaciSynchroni/AuthService/appsettings.json
+      - ../log/authservice-standalone/:/opt/LaciSynchroni/AuthService/logs/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
       postgres:
         condition: service_healthy
 
-  sinus-files:
+  laci-files:
     image: ghcr.io/lacisynchroni/staticfilesserver:latest
     restart: on-failure
     environment:
-      SinusSynchronous__CdnFullUrl: "${SINUS_CDNURL}"
-      SinusSynchronous__Jwt: "${SINUS_JWT}"
-      SinusSynchronous__JwtKeyId: "${SINUS_JWT_KEY_ID}"
-      SinusSynchronous__RedisConnectionString: "redis,password=${SINUS_REDIS_PASSWORD}"
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${SINUS_POSTGRES_DB};Username=${SINUS_POSTGRES_USER};Password=${SINUS_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
+      LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
+      LaciSynchroni__Jwt: "${LACI_JWT}"
+      LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
+      LaciSynchroni__RedisConnectionString: "redis,password=${LACI_REDIS_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${LACI_POSTGRES_DB};Username=${LACI_POSTGRES_USER};Password=${LACI_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
       DOTNET_USE_POLLING_FILE_WATCHER: 1
     volumes:
-      - ../config/standalone/base.appsettings.json:/opt/SinusSynchronousStaticFilesServer/base.appsettings.json
-      - ../config/standalone/files.appsettings.json:/opt/SinusSynchronousStaticFilesServer/appsettings.json
-      - ../log/files-standalone/:/opt/SinusSynchronousStaticFilesServer/logs/:rw
-      - ../data/files-standalone/:/sinuscache/:rw
+      - ../config/standalone/base.appsettings.json:/opt/LaciSynchroni/StaticFilesServer/base.appsettings.json
+      - ../config/standalone/files.appsettings.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
+      - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
+      - ../data/files-standalone/:/lacicache/:rw
     depends_on:
       postgres:
         condition: service_healthy
-      sinus-server:
+      laci-server:
         condition: service_healthy
 
   prometheus:
@@ -122,8 +122,8 @@ services:
     image: grafana/grafana:latest
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_USER: "${SINUS_GF_SECURITY_ADMIN_USER}"
-      GF_SECURITY_ADMIN_PASSWORD: "${SINUS_GF_SECURITY_ADMIN_PASSWORD}"
+      GF_SECURITY_ADMIN_USER: "${LACI_GF_SECURITY_ADMIN_USER}"
+      GF_SECURITY_ADMIN_PASSWORD: "${LACI_GF_SECURITY_ADMIN_PASSWORD}"
     depends_on:
       - prometheus
     volumes:
@@ -135,7 +135,7 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      TUNNEL_TOKEN: "${SINUS_CLOUDFLARED_TOKEN}"
+      TUNNEL_TOKEN: "${LACI_CLOUDFLARED_TOKEN}"
     user: "1000:1000"
 
 volumes:

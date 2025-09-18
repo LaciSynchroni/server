@@ -3,14 +3,14 @@ services:
     image: postgres:latest
     restart: always
     environment:
-      POSTGRES_DB: "${SINUS_POSTGRES_DB}"
-      POSTGRES_USER: "${SINUS_POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${SINUS_POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${LACI_POSTGRES_DB}"
+      POSTGRES_USER: "${LACI_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${LACI_POSTGRES_PASSWORD}"
     volumes:
       - ../data/postgresql/:/var/lib/postgresql/data
       - postgres_socket:/var/run/postgresql:rw
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${SINUS_POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $${LACI_POSTGRES_USER}"]
       interval: 5s
       start_period: 5s
       timeout: 5s
@@ -24,23 +24,23 @@ services:
     volumes:
       - ../config/sharded/haproxy-shards.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
         
   redis:
     image: redis:latest
-    command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass $${SINUS_REDIS_PASSWORD}"]
+    command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass $${LACI_REDIS_PASSWORD}"]
     volumes:
       - cache:/data
 
-  sinus-server:
-    image: syrilai/sinus-synchronous-server:latest
+  laci-server:
+    image: ghcr.io/lacisynchroni/server:latest
     restart: on-failure
     environment:
-      MareSynchronos__CdnFullUrl: "${DEV_MARE_CDNURL}"
+      LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
     volumes:
-      - ../config/sharded/server-shard-main.json:/opt/MareSynchronosServer/appsettings.json
-      - ../log/server-shard-main/:/opt/MareSynchronosServer/logs/:rw
+      - ../config/sharded/server-shard-main.json:/opt/LaciSynchroni/Server/appsettings.json
+      - ../log/server-shard-main/:/opt/LaciSynchroni/Server/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
     depends_on:
       postgres:
@@ -51,59 +51,56 @@ services:
       start_period: 10s
       timeout: 1s
 
-  sinus-shard-1:
-    image: syrilai/sinus-synchronous-server:latest
+  laci-shard-1:
+    image: ghcr.io/lacisynchroni/server:latest
     restart: on-failure
     volumes:
-      - ../config/sharded/server-shard-1.json:/opt/MareSynchronosServer/appsettings.json
-      - ../log/server-shard-1/:/opt/MareSynchronosServer/logs/:rw
+      - ../config/sharded/server-shard-1.json:/opt/LaciSynchroni/Server/appsettings.json
+      - ../log/server-shard-1/:/opt/LaciSynchroni/Server/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
 
-  sinus-shard-2:
-    image: syrilai/sinus-synchronous-server:latest
+  laci-shard-2:
+    image: ghcr.io/lacisynchroni/server:latest
     restart: on-failure
     volumes:
-      - ../config/sharded/server-shard-2.json:/opt/MareSynchronosServer/appsettings.json
-      - ../log/server-shard-2/:/opt/MareSynchronosServer/logs/:rw
+      - ../config/sharded/server-shard-2.json:/opt/LaciSynchroni/Server/appsettings.json
+      - ../log/server-shard-2/:/opt/LaciSynchroni/Server/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
 
-  sinus-services:
-    image: syrilai/sinus-synchronous-services:latest
+  laci-services:
+    image: ghcr.io/lacisynchroni/services:latest
     restart: on-failure
-    environment:
-      MareSynchronos__DiscordBotToken: "${DEV_MARE_DISCORDTOKEN}"
-      MareSynchronos__DiscordChannelForMessages: "${DEV_MARE_DISCORDCHANNEL}"
     volumes:
-      - ../config/standalone/services-standalone.json:/opt/MareSynchronosServices/appsettings.json
-      - ../log/services-standalone/:/opt/MareSynchronosServices/logs/:rw
+      - ../config/standalone/services-standalone.json:/opt/LaciSynchroni/Services/appsettings.json
+      - ../log/services-standalone/:/opt/LaciSynchroni/Services/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
 
-  sinus-files:
-    image: syrilai/sinus-synchronous-staticfilesserver:latest
+  laci-files:
+    image: ghcr.io/lacisynchroni/staticfilesserver:latest
     restart: on-failure
     ports:
       - 6200:6200/tcp
     environment:
-      MareSynchronos__CdnShardConfiguration__0__CdnFullUrl: "${DEV_MARE_FILES1}"
-      MareSynchronos__CdnShardConfiguration__0__FileMatch: "^[012345678]"
-      MareSynchronos__CdnShardConfiguration__1__CdnFullUrl: "${DEV_MARE_FILES2}"
-      MareSynchronos__CdnShardConfiguration__1__FileMatch: "^[789ABCDEF]"
+      LaciSynchroni__CdnShardConfiguration__0__CdnFullUrl: "${LACI_CDNURL}"
+      LaciSynchroni__CdnShardConfiguration__0__FileMatch: "^[012345678]"
+      LaciSynchroni__CdnShardConfiguration__1__CdnFullUrl: "${LACI_CDNURL2}"
+      LaciSynchroni__CdnShardConfiguration__1__FileMatch: "^[789ABCDEF]"
     volumes:
-      - ../config/sharded/files-shard-main.json:/opt/MareSynchronosStaticFilesServer/appsettings.json
-      - ../log/files-standalone/:/opt/MareSynchronosStaticFilesServer/logs/:rw
+      - ../config/sharded/files-shard-main.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
+      - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
       - ../data/files-shard-main/:/marecache/:rw
     depends_on:
-      sinus-server:
+      laci-server:
         condition: service_healthy
     healthcheck:
       test: curl --fail http://localhost:6200/health || exit 1
@@ -111,32 +108,32 @@ services:
       start_period: 10s
       timeout: 1s
 
-  sinus-files-shard-1:
-    image: syrilai/sinus-synchronous-staticfilesserver:latest
+  laci-files-shard-1:
+    image: ghcr.io/lacisynchroni/staticfilesserver:latest
     restart: on-failure
     volumes:
-      - ../config/sharded/files-shard-1.json:/opt/MareSynchronosStaticFilesServer/appsettings.json
-      - ../log/files-shard-1/:/opt/MareSynchronosStaticFilesServer/logs/:rw
+      - ../config/sharded/files-shard-1.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
+      - ../log/files-shard-1/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-1/:/marecache/:rw
+      - ../data/files-shard-1/:/lacicache/:rw
     ports: 
       - 6201:6200/tcp
     depends_on:
-      sinus-files:
+      laci-files:
         condition: service_healthy
 
-  sinus-files-shard-2:
-    image: syrilai/sinus-synchronous-staticfilesserver:latest
+  laci-files-shard-2:
+    image: ghcr.io/lacisynchroni/staticfilesserver:latest
     restart: on-failure
     volumes:
-      - ../config/sharded/files-shard-2.json:/opt/MareSynchronosStaticFilesServer/appsettings.json
-      - ../log/files-shard-2/:/opt/MareSynchronosStaticFilesServer/logs/:rw
+      - ../config/sharded/files-shard-2.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
+      - ../log/files-shard-2/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-2/:/marecache/:rw
+      - ../data/files-shard-2/:/lacicache/:rw
     ports: 
       - 6202:6200/tcp
     depends_on:
-      sinus-files:
+      laci-files:
         condition: service_healthy
 
 volumes:
