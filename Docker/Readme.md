@@ -1,4 +1,4 @@
-# Sinus Synchronous Docker Setup
+# Laci Synchroni Docker Setup
 This is primarily aimed at developers who want to spin up their own local server for development purposes without having to spin up a VM, but also works for production ready servers, granted you have the knowledge to configure it securely.
 Obligatory requires Docker to be installed on the machine.
 
@@ -47,15 +47,15 @@ In your Cloudflare Tunnel, you should configure the following under Public hostn
 
 |   | Public hostname          | Path  | Service                  |
 |---|--------------------------|-------|--------------------------|
-| 1 | sinus.<your_domain>      | auth  | http://sinus-auth:6500   |
-| 2 | sinus.<your_domain>      | oauth | http://sinus-auth:6500   |
-| 3 | sinus.<your_domain>      | *     | http://sinus-server:6000 |
-| 4 | sinuscdn.<your_domain>   | *     | http://sinus-files:6200  |
-| 5 | sinusstats.<your_domain> | *     | http://grafana:3000      |
+| 1 | laci.<your_domain>      | auth  | http://laci-auth:6500   |
+| 2 | laci.<your_domain>      | oauth | http://laci-auth:6500   |
+| 3 | laci.<your_domain>      | *     | http://laci-server:6000 |
+| 4 | lacicdn.<your_domain>   | *     | http://laci-files:6200  |
+| 5 | lacistats.<your_domain> | *     | http://grafana:3000      |
 
 Naturally, you can also do the proxying with another service or on your own.
 
-## 3. Run the Sinus Synchronous Server
+## 3. Run the Laci Synchroni Server
 Head to `run` and start the services using either `linux.sh` or `windows.ps1`.
 There are two modes, each mutually exclusive:
 - `--standalone` (`-Standalone` for Windows) to run the services as a single instance.
