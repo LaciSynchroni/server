@@ -6,11 +6,11 @@
 			"Microsoft.Hosting.Lifetime": "Information",
 			"Microsoft.EntityFramework": "Warning",
 			"System.IO": "Information",
-			"SinusSynchronousServices": "Information",
-			"SinusSynchronousShared": "Information",
-			"SinusSynchronousStaticFilesServer": "Information",
-			"SinusSynchronousServer": "Information",
-			"SinusSynchronousServer.Services.SystemInfoService": "Warning"
+			"LaciSynchroni.Services": "Information",
+			"LaciSynchroni.Shared": "Information",
+			"LaciSynchroni.StaticFilesServer": "Information",
+			"LaciSynchroni.Server": "Information",
+			"LaciSynchroni.Server.Services.SystemInfoService": "Warning"
 		},
 		"File": {
 			"BasePath": "logs",
@@ -20,12 +20,12 @@
 			"MaxFileSize": 104857600,
 			"Files": [
 				{
-					"Path": "<date:yyyy>/<date:MM>/<date:dd>/sinus-<date:HH>-<counter:0000>.log"
+					"Path": "<date:yyyy>/<date:MM>/<date:dd>/laci-<date:HH>-<counter:0000>.log"
 				}
 			]
 		}
 	},
-	"SinusSynchronous": {
+	"LaciSynchroni": {
 		"DbContextPoolSize": 512,
 		"RedisPool": 50
 	},

@@ -1,6 +1,6 @@
 {
-	"SinusSynchronous": {
-		"MainServerAddress": "http://sinus-server:6000/",
+	"LaciSynchroni": {
+		"MainServerAddress": "http://laci-server:6000/",
 		"MetricsPort": 6250,
 		"ShardName": "Files",
 
@@ -9,7 +9,7 @@
 		"ForcedDeletionOfFilesAfterHours": -1,
 		"CacheSizeHardLimitInGiB": 10,
 		"UnusedFileRetentionPeriodInDays": 7,
-		"CacheDirectory": "/sinuscache/",
+		"CacheDirectory": "/lacicache/",
 		"DownloadQueueSize": 50,
 		"RemoteCacheSourceUri": "",
 		"UseColdStorage": false,

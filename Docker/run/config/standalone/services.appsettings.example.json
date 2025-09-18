@@ -1,8 +1,8 @@
 {
-	"SinusSynchronous": {
+	"LaciSynchroni": {
 		"ShardName": "Services",
 		"MetricsPort": 6150,
-		"MainServerAddress": "http://sinus-server:6000/",
+		"MainServerAddress": "http://laci-server:6000/",
 		"DiscordChannelForMessages": "",
 		"DiscordChannelForCommands": "",
 		"DiscordChannelForBotLog": "",

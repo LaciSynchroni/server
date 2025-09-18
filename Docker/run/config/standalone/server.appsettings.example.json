@@ -1,12 +1,12 @@
 {
-	"SinusSynchronous": {
+	"LaciSynchroni": {
 		"ShardName": "Main",
 		"MetricsPort": 6050,
 		"MainServerAddress": "",
 		"FailedAuthForTempBan": 5,
 		"TempBanDurationInMinutes": 5,
 		"WhitelistedIps": [""],
-		"CdnFullUrl": "http://sinus-files:6200",
+		"CdnFullUrl": "http://laci-files:6200",
 		"MaxExistingGroupsByUser": 2,
 		"MaxJoinedGroupsByUser": 5,
 		"MaxGroupUserCount": 50,
@@ -15,7 +15,7 @@
 		"ExpectedClientVersion": "1.11.24",
 		"MaxCharaDataByUser": 25,
 		"MaxCharaDataByUserVanity": 50,
-		"ServerName": "Sinus Synchronous",
+		"ServerName": "Laci Synchroni",
 		"ServerPublicUri": "wss://<your_domain>",
 		"DiscordInvite": null,
 		"ServerRules": null
