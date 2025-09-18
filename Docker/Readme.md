@@ -5,7 +5,7 @@ Obligatory requires Docker to be installed on the machine.
 There are two directories: `build` and `run`
 
 ## 1. Build Images
-To build a single image, or multiple images, use either `windows.ps1` or `linux.sh`.
+To build a single image, or multiple images, use either './linux.sh' or `.\windows.ps1`.
 There are two ways to build the necessary docker images:
 - `--local` (`-Local` for Windows) will run the image build against the current locally present sources
 - `--git` (`-Git` for Windows) will run the image build against the latest git main commit
@@ -56,7 +56,7 @@ In your Cloudflare Tunnel, you should configure the following under Public hostn
 Naturally, you can also do the proxying with another service or on your own.
 
 ## 3. Run the Laci Synchroni Server
-Head to `run` and start the services using either `linux.sh` or `windows.ps1`.
+Head to `run` and start the services using either `./linux.sh` or `.\windows.ps1`.
 There are two modes, each mutually exclusive:
 - `--standalone` (`-Standalone` for Windows) to run the services as a single instance.
 - `--sharded` (`-Sharded` for Windows) to run the services in a sharded configuration.
