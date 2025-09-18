@@ -188,7 +188,7 @@ internal class DiscordBot : IHostedService
         eb.WithTitle($"{serverName} Services Bot Interaction Service");
         eb.WithDescription("Press \"Start\" to interact with this bot!" + Environment.NewLine + Environment.NewLine
             + $"You can handle all of your {serverName} account needs in this server through the easy to use interactive bot prompt. Just follow the instructions!");
-        eb.WithThumbnailUrl("https://raw.githubusercontent.com/MareSynchronos2/repo/main/SinusSynchronous/images/icon.png");
+        eb.WithThumbnailUrl("https://raw.githubusercontent.com/LaciSynchroni/repo/main/images/icon.png");
         var cb = new ComponentBuilder();
         cb.WithButton("Start", style: ButtonStyle.Primary, customId: "wizard-captcha:true", emote: Emoji.Parse("➡️"));
         if (prevMessage == null)
