@@ -98,7 +98,7 @@ services:
       - ../config/sharded/files-shard-main.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
       - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-main/:/marecache/:rw
+      - ../data/files-shard-main/:/sinuscache/:rw
     depends_on:
       laci-server:
         condition: service_healthy
