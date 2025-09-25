@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: docker.io/postgres:latest
     command: ["postgres", "-c", "log_statement=all"]
     restart: always
     environment:
@@ -16,7 +16,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:latest
+    image: docker.io/redis:latest
     env_file:
       - path: ./.env.local
         required: true
@@ -25,7 +25,8 @@ services:
       - cache:/data
 
   laci-server:
-    image: ghcr.io/lacisynchroni/server:latest
+    image: lacisynchroni/server:latest
+    pull_policy: never
     restart: on-failure
     environment:
       LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
@@ -48,7 +49,8 @@ services:
       timeout: 1s
 
   laci-services:
-    image: ghcr.io/lacisynchroni/services:latest
+    image: lacisynchroni/services:latest
+    pull_policy: never
     restart: on-failure
     environment:
       LaciSynchroni__DiscordBotToken: "${LACI_DISCORD_TOKEN}"
@@ -68,7 +70,8 @@ services:
         condition: service_healthy
 
   laci-auth:
-    image: ghcr.io/lacisynchroni/authservice:latest
+    image: lacisynchroni/authservice:latest
+    pull_policy: never
     restart: on-failure
     environment:
       LaciSynchroni__PublicOAuthBaseUri: "${LACI_PUBLIC_OAUTH_BASE_URI}"
@@ -90,7 +93,8 @@ services:
         condition: service_healthy
 
   laci-files:
-    image: ghcr.io/lacisynchroni/staticfilesserver:latest
+    image: lacisynchroni/staticfilesserver:latest
+    pull_policy: never
     restart: on-failure
     environment:
       LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
@@ -111,7 +115,7 @@ services:
         condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:latest
+    image: docker.io/prom/prometheus:latest
     restart: unless-stopped
     volumes:
       - prometheus:/prometheus
@@ -119,7 +123,7 @@ services:
     user: "1000:1000"
 
   grafana:
-    image: grafana/grafana:latest
+    image: docker.io/grafana/grafana:latest
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: "${LACI_GF_SECURITY_ADMIN_USER}"
@@ -131,7 +135,7 @@ services:
     user: "1000:1000"
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: docker.io/cloudflare/cloudflared:latest
     restart: unless-stopped
     command: tunnel run
     environment:
