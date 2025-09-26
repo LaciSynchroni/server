@@ -74,9 +74,9 @@ public class JwtController : AuthControllerBase
             if (string.IsNullOrEmpty(auth)) return BadRequest("No Authkey");
             if (string.IsNullOrEmpty(charaIdent)) return BadRequest("No CharaIdent");
 
-            var ip = HttpAccessor.GetIpAddress();
+            var remoteIp = HttpAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
-            var authResult = await SecretKeyAuthenticatorService.AuthorizeAsync(ip, auth);
+            var authResult = await SecretKeyAuthenticatorService.AuthorizeAsync(remoteIp, auth);
 
             return await GenericAuthResponse(dbContext, charaIdent, authResult);
         }

@@ -26,7 +26,7 @@ public class SecretKeyAuthenticatorService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<SecretKeyAuthReply> AuthorizeOauthAsync(string ip, string primaryUid, string requestedUid)
+    public async Task<SecretKeyAuthReply> AuthorizeOauthAsync(string? ip, string primaryUid, string requestedUid)
     {
         _metrics.IncCounter(MetricsAPI.CounterAuthenticationRequests);
 
@@ -35,14 +35,14 @@ public class SecretKeyAuthenticatorService
 
         using var context = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
         var authUser = await context.Auth.SingleOrDefaultAsync(u => u.UserUID == primaryUid).ConfigureAwait(false);
-        if (authUser == null) return AuthenticationFailure(ip);
+        if (authUser == null) return AuthenticationFailure(ip!);
 
         var authReply = await context.Auth.Include(a => a.User).AsNoTracking()
             .SingleOrDefaultAsync(u => u.UserUID == requestedUid).ConfigureAwait(false);
-        return await GetAuthReply(ip, context, authReply);
+        return await GetAuthReply(ip!, context, authReply);
     }
 
-    public async Task<SecretKeyAuthReply> AuthorizeAsync(string ip, string hashedSecretKey)
+    public async Task<SecretKeyAuthReply> AuthorizeAsync(string? ip, string hashedSecretKey)
     {
         _metrics.IncCounter(MetricsAPI.CounterAuthenticationRequests);
 
@@ -52,7 +52,7 @@ public class SecretKeyAuthenticatorService
         using var context = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
         var authReply = await context.Auth.Include(a => a.User).AsNoTracking()
             .SingleOrDefaultAsync(u => u.HashedKey == hashedSecretKey).ConfigureAwait(false);
-        return await GetAuthReply(ip, context, authReply).ConfigureAwait(false);
+        return await GetAuthReply(ip!, context, authReply).ConfigureAwait(false);
     }
 
     private async Task<SecretKeyAuthReply> GetAuthReply(string ip, LaciDbContext context, Auth? authReply)
@@ -84,8 +84,18 @@ public class SecretKeyAuthenticatorService
         }
     }
 
-    private SecretKeyAuthReply? FailOnIp(string ip)
+    private SecretKeyAuthReply? FailOnIp(string? ip)
     {
+        if (ShouldFailIp(ip))
+            return new(Success: false, Uid: null, PrimaryUid: null, Alias: null, TempBan: true, Permaban: false, MarkedForBan: false);
+
+        return null;
+    }
+
+    private bool ShouldFailIp(string? ip)
+    {
+        if (ip == null) return true;
+
         if (_failedAuthorizations.TryGetValue(ip, out var existingFailedAuthorization)
             && existingFailedAuthorization.FailedAttempts > _configurationService.GetValueOrDefault(nameof(AuthServiceConfiguration.FailedAuthForTempBan), 5))
         {
@@ -102,11 +112,9 @@ public class SecretKeyAuthenticatorService
                     _failedAuthorizations.Remove(ip, out _);
                 });
             }
-
-            return new(Success: false, Uid: null, PrimaryUid: null, Alias: null, TempBan: true, Permaban: false, MarkedForBan: false);
         }
 
-        return null;
+        return false;
     }
 
     private SecretKeyAuthReply AuthenticationFailure(string ip)

@@ -145,9 +145,10 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
     [Authorize(Policy = "Authenticated")]
     public override async Task OnConnectedAsync()
     {
+        var remoteIp = _contextAccessor.HttpContext?.Connection.RemoteIpAddress;
         if (_userConnections.TryGetValue(UserUID, out var oldId))
         {
-            _logger.LogCallWarning(ServerHubLogger.Args(_contextAccessor.GetIpAddress(), "UpdatingId", oldId, Context.ConnectionId));
+            _logger.LogCallWarning(ServerHubLogger.Args(remoteIp, "UpdatingId", oldId, Context.ConnectionId));
             _userConnections[UserUID] = Context.ConnectionId;
         }
         else
@@ -156,7 +157,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
 
             try
             {
-                _logger.LogCallInfo(ServerHubLogger.Args(_contextAccessor.GetIpAddress(), Context.ConnectionId, UserCharaIdent));
+                _logger.LogCallInfo(ServerHubLogger.Args(remoteIp, Context.ConnectionId, UserCharaIdent));
                 await _onlineSyncedPairCacheService.InitPlayer(UserUID).ConfigureAwait(false);
                 await UpdateUserOnRedis().ConfigureAwait(false);
                 _userConnections[UserUID] = Context.ConnectionId;
@@ -173,6 +174,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
     [Authorize(Policy = "Authenticated")]
     public override async Task OnDisconnectedAsync(Exception exception)
     {
+        var remoteIp = _contextAccessor.HttpContext?.Connection.RemoteIpAddress;
         if (_userConnections.TryGetValue(UserUID, out var connectionId)
             && string.Equals(connectionId, Context.ConnectionId, StringComparison.Ordinal))
         {
@@ -184,9 +186,9 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
 
                 await _onlineSyncedPairCacheService.DisposePlayer(UserUID).ConfigureAwait(false);
 
-                _logger.LogCallInfo(ServerHubLogger.Args(_contextAccessor.GetIpAddress(), Context.ConnectionId, UserCharaIdent));
+                _logger.LogCallInfo(ServerHubLogger.Args(remoteIp, Context.ConnectionId, UserCharaIdent));
                 if (exception != null)
-                    _logger.LogCallWarning(ServerHubLogger.Args(_contextAccessor.GetIpAddress(), Context.ConnectionId, exception.Message, exception.StackTrace));
+                    _logger.LogCallWarning(ServerHubLogger.Args(remoteIp, Context.ConnectionId, exception.Message, exception.StackTrace));
 
                 await RemoveUserFromRedis().ConfigureAwait(false);
 
@@ -206,7 +208,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
         }
         else
         {
-            _logger.LogCallWarning(ServerHubLogger.Args(_contextAccessor.GetIpAddress(), "ObsoleteId", UserUID, Context.ConnectionId));
+            _logger.LogCallWarning(ServerHubLogger.Args(remoteIp, "ObsoleteId", UserUID, Context.ConnectionId));
         }
 
         await base.OnDisconnectedAsync(exception).ConfigureAwait(false);

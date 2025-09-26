@@ -24,10 +24,10 @@ public class SignalRLimitFilter : IHubFilter
     public async ValueTask<object> InvokeMethodAsync(
         HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object>> next)
     {
-        var ip = accessor.GetIpAddress();
+        var remoteIp = accessor.HttpContext?.Connection.RemoteIpAddress;
         var client = new ClientRequestIdentity
         {
-            ClientIp = ip,
+            ClientIp = remoteIp?.ToString(),
             Path = invocationContext.HubMethodName,
             HttpVerb = "ws",
             ClientId = invocationContext.Context.UserIdentifier,
@@ -37,9 +37,9 @@ public class SignalRLimitFilter : IHubFilter
             var counter = await _processor.ProcessRequestAsync(client, rule).ConfigureAwait(false);
             if (counter.Count > rule.Limit)
             {
-                var authUserId = invocationContext.Context.User.Claims?.SingleOrDefault(c => string.Equals(c.Type, LaciClaimTypes.Uid, StringComparison.Ordinal))?.Value ?? "Unknown";
+                var authUserId = invocationContext.Context.User?.Claims.SingleOrDefault(c => string.Equals(c.Type, LaciClaimTypes.Uid, StringComparison.Ordinal))?.Value ?? "Unknown";
                 var retry = counter.Timestamp.RetryAfterFrom(rule);
-                logger.LogWarning("Method rate limit triggered from {ip}/{authUserId}: {method}", ip, authUserId, invocationContext.HubMethodName);
+                logger.LogWarning("Method rate limit triggered from {Ip}/{AuthUserId}: {Method}", remoteIp, authUserId, invocationContext.HubMethodName);
                 throw new HubException($"call limit {retry}");
             }
         }

@@ -294,9 +294,9 @@ public class OAuthController : AuthControllerBase
             if (string.IsNullOrEmpty(requestedUid)) return BadRequest("No UID");
             if (string.IsNullOrEmpty(charaIdent)) return BadRequest("No CharaIdent");
 
-            var ip = HttpAccessor.GetIpAddress();
+            var remoteIp = HttpAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
-            var authResult = await SecretKeyAuthenticatorService.AuthorizeOauthAsync(ip, primaryUid, requestedUid);
+            var authResult = await SecretKeyAuthenticatorService.AuthorizeOauthAsync(remoteIp, primaryUid, requestedUid);
 
             return await GenericAuthResponse(dbContext, charaIdent, authResult);
         }

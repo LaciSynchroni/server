@@ -23,7 +23,7 @@ public class GeoIPService : IHostedService
         _authServiceConfiguration = authServiceConfiguration;
     }
 
-    public async Task<string> GetCountryFromIP(IHttpContextAccessor httpContextAccessor)
+    public async Task<string> GetCountryFromIp(IHttpContextAccessor httpContextAccessor)
     {
         if (!_useGeoIP)
         {
@@ -32,13 +32,13 @@ public class GeoIPService : IHostedService
 
         try
         {
-            var ip = httpContextAccessor.GetIpAddress();
+            var remoteIp = httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
 
             using CancellationTokenSource waitCts = new();
             waitCts.CancelAfter(TimeSpan.FromSeconds(5));
             while (_processingReload) await Task.Delay(100, waitCts.Token).ConfigureAwait(false);
 
-            if (_dbReader!.TryCity(ip, out var response))
+            if (remoteIp != null && _dbReader!.TryCity(remoteIp, out var response))
             {
                 string? continent = response?.Continent.Code;
                 if (!string.IsNullOrEmpty(continent) &&
