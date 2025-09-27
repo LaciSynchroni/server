@@ -4,9 +4,9 @@ on:
   push:
     tags:
       # Only trigger on semantic version tags with 'v' prefix
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - '!v[0-9]+.[0-9]+.[0-9]+-*'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
+# Explicit permissions for security
 permissions:
   contents: read
   packages: write
@@ -17,6 +17,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
+    # Matrix strategy to build multiple images
     strategy:
       matrix:
         service:
@@ -53,8 +54,6 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
       
       - name: Build and push ${{ matrix.service.name }}
         id: push
