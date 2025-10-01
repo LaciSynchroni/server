@@ -5,6 +5,7 @@ using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -233,7 +234,7 @@ public partial class LaciWizardModule
                 {
                     services.DiscordVerifiedUsers[userid] = true;
                     _logger.LogInformation("Verified {userid} from lodestone {lodestone}", userid, services.DiscordLodestoneMapping[userid]);
-                    await _botServices.LogToChannel($"<@{userid}> REGISTER VERIFY: Success.").ConfigureAwait(false);
+                    await _botServices.LogToChannel(LogType.Register, $"<@{userid}> REGISTER VERIFY: Success.").ConfigureAwait(false);
                     services.DiscordLodestoneMapping.TryRemove(userid, out _);
                 }
                 else
@@ -241,13 +242,13 @@ public partial class LaciWizardModule
                     services.DiscordVerifiedUsers[userid] = false;
                     _logger.LogInformation("Could not verify {userid} from lodestone {lodestone}, did not find authString: {authString}, status code was: {code}",
                         userid, services.DiscordLodestoneMapping[userid], authString, response.StatusCode);
-                    await _botServices.LogToChannel($"<@{userid}> REGISTER VERIFY: Failed: No Authstring ({authString}). (<{url}>)").ConfigureAwait(false);
+                    await _botServices.LogToChannel(LogType.Register, $"<@{userid}> REGISTER VERIFY: Failed: No Authstring ({authString}). (<{url}>)").ConfigureAwait(false);
                 }
             }
             else
             {
                 _logger.LogWarning("Could not verify {userid}, HttpStatusCode: {code}", userid, response.StatusCode);
-                await _botServices.LogToChannel($"<@{userid}> REGISTER VERIFY: Failed: HttpStatusCode {response.StatusCode}. (<{url}>)").ConfigureAwait(false);
+                await _botServices.LogToChannel(LogType.Register, $"<@{userid}> REGISTER VERIFY: Failed: HttpStatusCode {response.StatusCode}. (<{url}>)").ConfigureAwait(false);
             }
         }
     }
@@ -307,7 +308,7 @@ public partial class LaciWizardModule
 
         _botServices.Logger.LogInformation("User registered: {userUID}:{hashedKey}", user.UID, hashedKey);
 
-        await _botServices.LogToChannel($"{Context.User.Mention} REGISTER COMPLETE: => {user.UID}").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.Register, $"{Context.User.Mention} REGISTER COMPLETE: => {user.UID}").ConfigureAwait(false);
 
         _botServices.DiscordVerifiedUsers.Remove(Context.User.Id, out _);
 

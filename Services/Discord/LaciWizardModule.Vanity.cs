@@ -1,8 +1,9 @@
-﻿using Discord.Interactions;
-using Discord;
+﻿using Discord;
+using Discord.Interactions;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -120,7 +121,7 @@ public partial class LaciWizardModule
             eb.WithTitle("Vanity UID successfully set");
             eb.WithDescription($"Your Vanity UID for \"{uid}\" was successfully changed to \"{desiredVanityUid}\"." + Environment.NewLine + Environment.NewLine
                 + "For changes to take effect you need to reconnect to the Laci service.");
-            await _botServices.LogToChannel($"{Context.User.Mention} VANITY UID SET: UID: {user.UID}, Vanity: {desiredVanityUid}").ConfigureAwait(false);
+            await _botServices.LogToChannel(LogType.VanitySet, $"{Context.User.Mention} VANITY UID SET: UID: {user.UID}, Vanity: {desiredVanityUid}").ConfigureAwait(false);
             AddHome(cb);
         }
 
@@ -197,7 +198,7 @@ public partial class LaciWizardModule
             eb.WithDescription($"Your Vanity Syncshell ID for {gid} was successfully changed to \"{desiredVanityGid}\"." + Environment.NewLine + Environment.NewLine
                 + "For changes to take effect you need to reconnect to the Laci service.");
             AddHome(cb);
-            await _botServices.LogToChannel($"{Context.User.Mention} VANITY GID SET: GID: {group.GID}, Vanity: {desiredVanityGid}").ConfigureAwait(false);
+            await _botServices.LogToChannel(LogType.VanitySet, $"{Context.User.Mention} VANITY GID SET: GID: {group.GID}, Vanity: {desiredVanityGid}").ConfigureAwait(false);
         }
 
         await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
