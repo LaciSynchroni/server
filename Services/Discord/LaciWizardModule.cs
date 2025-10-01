@@ -9,6 +9,7 @@ using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
 using StackExchange.Redis;
 using System.Text.RegularExpressions;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -118,7 +119,7 @@ public partial class LaciWizardModule : InteractionModuleBase
             m.Components = cb.Build();
         }).ConfigureAwait(false);
 
-        await _botServices.LogToChannel($"{Context.User.Mention} FAILED CAPTCHA").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.CaptchaFailed, $"{Context.User.Mention} FAILED CAPTCHA").ConfigureAwait(false);
     }
 
 

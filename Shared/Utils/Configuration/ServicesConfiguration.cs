@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Shared.Utils.Configuration;
 
@@ -17,6 +18,21 @@ public class ServicesConfiguration : LaciConfigurationBase
     public int SecondaryUIDLimit { get; set; } = 5;
     [RemoteConfiguration]
     public string ServerName { get; set; } = "Laci Synchroni";
+    public LogType[] AllowedDiscordLogs { get; set; } = [
+        LogType.Startup,
+        LogType.VanityCleanup,
+        LogType.UserProcessing,
+        LogType.RegistrationRole,
+        LogType.ModeratorAction,
+        LogType.Register,
+        LogType.Delete,
+        LogType.SecondaryAdd,
+        LogType.VanitySet,
+        LogType.Recover,
+        LogType.Relink,
+        LogType.CaptchaFailed,
+    ];
+    public bool RunVanityCleanup { get; set; } = true;
 
     public override string ToString()
     {
@@ -34,6 +50,10 @@ public class ServicesConfiguration : LaciConfigurationBase
         {
             sb.AppendLine($"{nameof(VanityRoles)} => {role.Key} = {role.Value}");
         }
+        sb.AppendLine($"{nameof(SecondaryUIDLimit)} => {SecondaryUIDLimit}");
+        sb.AppendLine($"{nameof(ServerName)} => {ServerName}");
+        sb.AppendLine($"{nameof(AllowedDiscordLogs)} => {AllowedDiscordLogs}");
+        sb.AppendLine($"{nameof(RunVanityCleanup)} => {RunVanityCleanup}");
         return sb.ToString();
     }
 }

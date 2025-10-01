@@ -4,6 +4,7 @@ using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -102,7 +103,7 @@ public partial class LaciWizardModule
 
                 await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
 
-                await _botServices.LogToChannel($"{Context.User.Mention} DELETE SUCCESS: {uid}").ConfigureAwait(false);
+                await _botServices.LogToChannel(LogType.Delete, $"{Context.User.Mention} DELETE SUCCESS: {uid}").ConfigureAwait(false);
 
                 // only remove role if deleted uid has lodestone attached (== primary uid)
                 if (lodestone != null)

@@ -1,8 +1,9 @@
-﻿using Discord.Interactions;
-using Discord;
+﻿using Discord;
+using Discord.Interactions;
 using LaciSynchroni.Shared.Data;
-using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Models;
+using LaciSynchroni.Shared.Utils;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace LaciSynchroni.Services.Discord;
@@ -224,7 +225,7 @@ public partial class LaciWizardModule
                 {
                     services.DiscordVerifiedUsers[userid] = true;
                     _logger.LogInformation("Relink: Verified {userid} from lodestone {lodestone}", userid, services.DiscordRelinkLodestoneMapping[userid]);
-                    await _botServices.LogToChannel($"<@{userid}> RELINK VERIFY: Success.").ConfigureAwait(false);
+                    await _botServices.LogToChannel(LogType.Relink, $"<@{userid}> RELINK VERIFY: Success.").ConfigureAwait(false);
                     services.DiscordRelinkLodestoneMapping.TryRemove(userid, out _);
                 }
                 else
@@ -232,13 +233,13 @@ public partial class LaciWizardModule
                     services.DiscordVerifiedUsers[userid] = false;
                     _logger.LogInformation("Relink: Could not verify {userid} from lodestone {lodestone}, did not find authString: {authString}, status code was: {code}",
                         userid, services.DiscordRelinkLodestoneMapping[userid], authString, response.StatusCode);
-                    await _botServices.LogToChannel($"<@{userid}> RELINK VERIFY: Failed: No Authstring ({authString}). (<{url}>)").ConfigureAwait(false);
+                    await _botServices.LogToChannel(LogType.Relink, $"<@{userid}> RELINK VERIFY: Failed: No Authstring ({authString}). (<{url}>)").ConfigureAwait(false);
                 }
             }
             else
             {
                 _logger.LogWarning("Could not verify {userid}, HttpStatusCode: {code}", userid, response.StatusCode);
-                await _botServices.LogToChannel($"<@{userid}> RELINK VERIFY: Failed: HttpStatusCode {response.StatusCode}. (<{url}>)").ConfigureAwait(false);
+                await _botServices.LogToChannel(LogType.Relink, $"<@{userid}> RELINK VERIFY: Failed: HttpStatusCode {response.StatusCode}. (<{url}>)").ConfigureAwait(false);
             }
         }
     }
@@ -274,7 +275,7 @@ public partial class LaciWizardModule
 
         await db.SaveChangesAsync().ConfigureAwait(false);
 
-        await _botServices.LogToChannel($"{Context.User.Mention} RELINK COMPLETE: => {user.UID}").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.Relink, $"{Context.User.Mention} RELINK COMPLETE: => {user.UID}").ConfigureAwait(false);
 
         return (user.UID, computedHash);
     }

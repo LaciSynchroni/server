@@ -4,6 +4,7 @@ using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -85,6 +86,6 @@ public partial class LaciWizardModule
         await db.SaveChangesAsync().ConfigureAwait(false);
 
         _botServices.Logger.LogInformation("User recovered: {userUID}:{hashedKey}", previousAuth.UserUID, hashedKey);
-        await _botServices.LogToChannel($"{Context.User.Mention} RECOVER SUCCESS: {previousAuth.UserUID}").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.Recover, $"{Context.User.Mention} RECOVER SUCCESS: {previousAuth.UserUID}").ConfigureAwait(false);
     }
 }

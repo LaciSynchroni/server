@@ -8,6 +8,7 @@ using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils.Configuration;
 using StackExchange.Redis;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -115,7 +116,7 @@ internal class DiscordBot : IHostedService
 
         await CreateOrUpdateModal(guild).ConfigureAwait(false);
         _botServices.UpdateGuild(guild);
-        await _botServices.LogToChannel("Bot startup complete.").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.Startup, "Bot startup complete.").ConfigureAwait(false);
         _ = UpdateVanityRoles(guild, _clientConnectedCts.Token);
         _ = RemoveUsersNotInVanityRole(_clientConnectedCts.Token);
         _ = RemoveUnregisteredUsers(_clientConnectedCts.Token);
@@ -244,7 +245,7 @@ internal class DiscordBot : IHostedService
             }
             catch (Exception ex)
             {
-                await _botServices.LogToChannel($"Error during user procesing: {ex.Message}").ConfigureAwait(false);
+                await _botServices.LogToChannel(LogType.UserProcessing, $"Error during user procesing: {ex.Message}").ConfigureAwait(false);
             }
 
             await Task.Delay(TimeSpan.FromDays(1)).ConfigureAwait(false);
@@ -270,7 +271,7 @@ internal class DiscordBot : IHostedService
         int toRemoveUsers = 0;
         int freshUsers = 0;
 
-        await _botServices.LogToChannel($"Starting to process registered users: Adding Role {registrationRole.Name}. Kick Stale Unregistered: {kickUnregistered}.").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.UserProcessing, $"Starting to process registered users: Adding Role {registrationRole.Name}. Kick Stale Unregistered: {kickUnregistered}.").ConfigureAwait(false);
 
         await foreach (var userList in guild.GetUsersAsync(new RequestOptions { CancelToken = token }).ConfigureAwait(false))
         {
@@ -311,19 +312,27 @@ internal class DiscordBot : IHostedService
             }
         }
 
-        await _botServices.LogToChannel($"Processing registered users finished. Processed {processedUsers} users, added {addedRoles} roles and kicked {kickedUsers} users").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.UserProcessing, $"Processing registered users finished. Processed {processedUsers} users, added {addedRoles} roles and kicked {kickedUsers} users").ConfigureAwait(false);
     }
 
     private async Task RemoveUsersNotInVanityRole(CancellationToken token)
     {
         var guild = (await _discordClient.Rest.GetGuildsAsync().ConfigureAwait(false)).First();
 
+        var isCleanupEnabled = _configurationService.GetValueOrDefault(nameof(ServicesConfiguration.RunVanityCleanup), true);
+
+        if (!isCleanupEnabled)
+        {
+            _logger.LogInformation("Vanity UID cleanup disabled, not starting cleanup task");
+            return;
+        }
+
         while (!token.IsCancellationRequested)
         {
             try
             {
                 _logger.LogInformation($"Cleaning up Vanity UIDs");
-                await _botServices.LogToChannel("Cleaning up Vanity UIDs").ConfigureAwait(false);
+                await _botServices.LogToChannel(LogType.VanityCleanup, "Cleaning up Vanity UIDs").ConfigureAwait(false);
                 _logger.LogInformation("Getting rest guild {guildName}", guild.Name);
                 var restGuild = await _discordClient.Rest.GetGuildAsync(guild.Id).ConfigureAwait(false);
 
@@ -388,7 +397,7 @@ internal class DiscordBot : IHostedService
 
         if (lodestoneUser == null || discordUser == null || !discordUser.RoleIds.Any(allowedRoleIds.Keys.Contains))
         {
-            await _botServices.LogToChannel($"VANITY GID REMOVAL: <@{lodestoneUser?.DiscordId ?? 0}> ({lodestoneUser?.User?.UID}) - GID: {group.GID}, Vanity: {group.Alias}").ConfigureAwait(false);
+            await _botServices.LogToChannel(LogType.VanityCleanup, $"VANITY GID REMOVAL: <@{lodestoneUser?.DiscordId ?? 0}> ({lodestoneUser?.User?.UID}) - GID: {group.GID}, Vanity: {group.Alias}").ConfigureAwait(false);
 
             _logger.LogInformation($"User {lodestoneUser?.User?.UID ?? "unknown"} not in allowed roles, deleting group alias for {group.GID}");
             group.Alias = null;
@@ -405,7 +414,7 @@ internal class DiscordBot : IHostedService
         if (discordUser == null || !discordUser.RoleIds.Any(u => allowedRoleIds.Keys.Contains(u)))
         {
             _logger.LogInformation($"User {lodestoneAuth.User.UID} not in allowed roles, deleting alias");
-            await _botServices.LogToChannel($"VANITY UID REMOVAL: <@{lodestoneAuth.DiscordId}> - UID: {lodestoneAuth.User.UID}, Vanity: {lodestoneAuth.User.Alias}").ConfigureAwait(false);
+            await _botServices.LogToChannel(LogType.VanityCleanup, $"VANITY UID REMOVAL: <@{lodestoneAuth.DiscordId}> - UID: {lodestoneAuth.User.UID}, Vanity: {lodestoneAuth.User.Alias}").ConfigureAwait(false);
             lodestoneAuth.User.Alias = null;
             var secondaryUsers = await db.Auth.Include(u => u.User).Where(u => u.PrimaryUserUID == lodestoneAuth.User.UID).ToListAsync().ConfigureAwait(false);
             foreach (var secondaryUser in secondaryUsers)

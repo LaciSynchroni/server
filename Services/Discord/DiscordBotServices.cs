@@ -7,6 +7,7 @@ using LaciSynchroni.Shared.Metrics;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 using StackExchange.Redis;
 
 namespace LaciSynchroni.Services.Discord;
@@ -53,11 +54,26 @@ public class DiscordBotServices
         return Task.CompletedTask;
     }
 
-    public async Task LogToChannel(string msg)
+    public async Task LogToChannel(LogType logType, string msg)
     {
         if (_guild == null) return;
         Logger.LogInformation("LogToChannel: {msg}", msg);
         var logChannelId = _configuration.GetValueOrDefault<ulong?>(nameof(ServicesConfiguration.DiscordChannelForBotLog), null);
+        var allowedLogTypes = _configuration.GetValueOrDefault<LogType[]>(nameof(ServicesConfiguration.AllowedDiscordLogs), [
+            LogType.Startup,
+            LogType.VanityCleanup,
+            LogType.UserProcessing,
+            LogType.RegistrationRole,
+            LogType.ModeratorAction,
+            LogType.Register,
+            LogType.Delete,
+            LogType.SecondaryAdd,
+            LogType.VanitySet,
+            LogType.Recover,
+            LogType.Relink,
+            LogType.CaptchaFailed,
+        ]);
+        if (!allowedLogTypes.Contains(logType)) return;
         if (logChannelId == null) return;
         if (logChannelId != _logChannelId)
         {
@@ -76,7 +92,7 @@ public class DiscordBotServices
         await _logChannel.SendMessageAsync(msg).ConfigureAwait(false);
     }
 
-    private async Task RetryAsync(Task action, IUser user, string operation, bool logInfoToChannel = true)
+    private async Task RetryAsync(Task action, IUser user, LogType logType, string operation, bool logInfoToChannel = true)
     {
         int retryCount = 0;
         int maxRetries = 5;
@@ -88,25 +104,25 @@ public class DiscordBotServices
             {
                 await action.ConfigureAwait(false);
                 if (logInfoToChannel)
-                    await LogToChannel($"{user.Mention} {operation} SUCCESS").ConfigureAwait(false);
+                    await LogToChannel(logType, $"{user.Mention} {operation} SUCCESS").ConfigureAwait(false);
                 break;
             }
             catch (RateLimitedException)
             {
                 retryCount++;
-                await LogToChannel($"{user.Mention} {operation} RATELIMIT, retry {retryCount} in {retryDelay}.").ConfigureAwait(false);
+                await LogToChannel(logType, $"{user.Mention} {operation} RATELIMIT, retry {retryCount} in {retryDelay}.").ConfigureAwait(false);
                 await Task.Delay(retryDelay).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                await LogToChannel($"{user.Mention} {operation} FAILED: {ex.Message}").ConfigureAwait(false);
+                await LogToChannel(logType, $"{user.Mention} {operation} FAILED: {ex.Message}").ConfigureAwait(false);
                 break;
             }
         }
 
         if (retryCount == maxRetries)
         {
-            await LogToChannel($"{user.Mention} FAILED: RetryCount exceeded.").ConfigureAwait(false);
+            await LogToChannel(logType, $"{user.Mention} FAILED: RetryCount exceeded.").ConfigureAwait(false);
         }
     }
 
@@ -117,7 +133,7 @@ public class DiscordBotServices
         var restUser = await _guild.GetUserAsync(user.Id).ConfigureAwait(false);
         if (restUser == null) return;
         if (!restUser.RoleIds.Contains(registeredRole.Value)) return;
-        await RetryAsync(restUser.RemoveRoleAsync(registeredRole.Value), user, $"Remove Registered Role").ConfigureAwait(false);
+        await RetryAsync(restUser.RemoveRoleAsync(registeredRole.Value), user, LogType.RegistrationRole, $"Remove Registered Role").ConfigureAwait(false);
     }
 
     public async Task AddRegisteredRoleAsync(IUser user)
@@ -127,19 +143,19 @@ public class DiscordBotServices
         var restUser = await _guild.GetUserAsync(user.Id).ConfigureAwait(false);
         if (restUser == null) return;
         if (restUser.RoleIds.Contains(registeredRole.Value)) return;
-        await RetryAsync(restUser.AddRoleAsync(registeredRole.Value), user, $"Add Registered Role").ConfigureAwait(false);
+        await RetryAsync(restUser.AddRoleAsync(registeredRole.Value), user, LogType.RegistrationRole, $"Add Registered Role").ConfigureAwait(false);
     }
 
     public async Task<bool> AddRegisteredRoleAsync(RestGuildUser user, RestRole role)
     {
         if (user.RoleIds.Contains(role.Id)) return false;
-        await RetryAsync(user.AddRoleAsync(role), user, $"Add Registered Role", false).ConfigureAwait(false);
+        await RetryAsync(user.AddRoleAsync(role), user, LogType.RegistrationRole, $"Add Registered Role", false).ConfigureAwait(false);
         return true;
     }
 
     public async Task KickUserAsync(RestGuildUser user)
     {
-        await RetryAsync(user.KickAsync("No registration found"), user, "Kick").ConfigureAwait(false);
+        await RetryAsync(user.KickAsync("No registration found"), user, LogType.RegistrationRole, "Kick").ConfigureAwait(false);
     }
 
     private async Task ProcessVerificationQueue()

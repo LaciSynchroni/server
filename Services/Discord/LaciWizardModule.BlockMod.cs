@@ -5,6 +5,7 @@ using LaciSynchroni.Shared.Utils.Configuration;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Shared.Models;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -72,7 +73,7 @@ public partial class LaciWizardModule
             await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
 
 
-            await _botServices.LogToChannel($"{Context.User.Mention} MOD BLOCK SUCCESS: {modal.ModHash}").ConfigureAwait(false);
+            await _botServices.LogToChannel(LogType.ModeratorAction, $"{Context.User.Mention} MOD BLOCK SUCCESS: {modal.ModHash}").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
