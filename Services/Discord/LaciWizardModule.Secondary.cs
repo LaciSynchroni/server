@@ -1,10 +1,11 @@
 ﻿using Discord;
 using Discord.Interactions;
-using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -90,7 +91,7 @@ public partial class LaciWizardModule
         embed.AddField("UID", newUser.UID);
         embed.AddField("Secret Key", computedHash);
 
-        await _botServices.LogToChannel($"{Context.User.Mention} SECONDARY SUCCESS: {newUser.UID}").ConfigureAwait(false);
+        await _botServices.LogToChannel(LogType.SecondaryAdd, $"{Context.User.Mention} SECONDARY SUCCESS: {newUser.UID}").ConfigureAwait(false);
     }
 
 }
