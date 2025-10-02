@@ -154,10 +154,8 @@ public partial class LaciWizardModule
         };
 
         var qcMessagePack = MessagePackSerializer.Serialize(quickConnectInfo, MessagePackSerializerOptions.Standard);
-        var qcJson = JsonSerializer.Serialize(quickConnectInfo, new JsonSerializerOptions { WriteIndented = false, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, IncludeFields = true });
 
         var messagePackBase64 = System.Convert.ToBase64String(qcMessagePack);
-        var jsonBase64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(qcJson));
 
         eb.WithTitle($"Registration successful, your UID: {uid}");
         eb.WithDescription("Use this quick connect code in the onboarding UI to quickly connect to this service."
