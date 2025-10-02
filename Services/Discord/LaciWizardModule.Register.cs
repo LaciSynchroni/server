@@ -149,7 +149,6 @@ public partial class LaciWizardModule
         var (uid, key) = await HandleAddUser(db).ConfigureAwait(false);
         QuickConnectDto quickConnectInfo = new()
         {
-            ServerName = _serverConfig.GetValue<string>(nameof(ServerConfiguration.ServerName)).ToString(),
             ServerURI = _serverConfig.GetValue<Uri>(nameof(ServerConfiguration.ServerPublicUri)).ToString(),
             SecretKey = key
         };
