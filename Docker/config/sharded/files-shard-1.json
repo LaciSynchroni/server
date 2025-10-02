@@ -7,7 +7,7 @@
             "Default": "Warning",
             "Microsoft": "Warning",
             "Microsoft.Hosting.Lifetime": "Information",
-            "LaciSynchroni.StaticFilesServer": "Information",
+            "LaciSynchroni.StaticFilesServer": "Debug",
             "LaciSynchroni.Shared": "Information",
             "System.IO": "Information"
         },
@@ -26,28 +26,25 @@
     },
     "LaciSynchroni": {
         "DbContextPoolSize": 512,
-        "ShardName": "Files",
+        "ShardName": "Files Shard 1",
         "MetricsPort": 6250,
-        "FileServerGrpcAddress": "",
-        "ForcedDeletionOfFilesAfterHours": -1,
-        "CacheSizeHardLimitInGiB": -1,
+        "ForcedDeletionOfFilesAfterHours": 2,
+        "CacheSizeHardLimitInGiB": 5,
         "UnusedFileRetentionPeriodInDays": 14,
-        "CacheDirectory": "/lacicache/",
-        "RemoteCacheSourceUri": "",
+		"CacheDirectory": "/opt/LaciSynchroni/StaticFilesServer/data/",
+        "DownloadTimeoutSeconds": 30,
+        "DownloadQueueSize": 50,
+        "DownloadQueueReleaseSeconds": 15,
         "RedisConnectionString": "redis,password=secretredispassword",
         "Jwt": "teststringteststringteststringteststringteststringteststringteststringteststringteststringteststring",
         "MainServerAddress": "http://laci-server:6000",
-        "MainFileServerAddress": ""
+        "MainFileServerAddress": "http://laci-files:6200"
     },
     "AllowedHosts": "*",
     "Kestrel": {
         "Endpoints": {
             "Http": {
                 "Url": "http://+:6200"
-            },
-            "Grpc": {
-                "Protocols": "Http2",
-                "Url": "http://+:6205"
             }
         }
     },

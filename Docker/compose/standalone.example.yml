@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: docker.io/postgres:latest
+    image: docker.io/postgres:18
     command: ["postgres", "-c", "log_statement=all"]
     restart: always
     environment:
@@ -17,18 +17,20 @@ services:
 
   redis:
     image: docker.io/redis:latest
-    env_file:
-      - path: ./.env.local
-        required: true
     command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass ${LACI_REDIS_PASSWORD}"]
     volumes:
       - cache:/data
 
   laci-server:
     image: lacisynchroni/server:latest
-    pull_policy: never
+    pull_policy: build
+    build:
+      context: ../..
+      target: server
     restart: on-failure
     environment:
+      LaciSynchroni__ServerName: "${LACI_SERVER_NAME}"
+      LaciSynchroni__ServerPublicUri: "${LACI_PUBLIC_URI}"
       LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
       LaciSynchroni__Jwt: "${LACI_JWT}"
       LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
@@ -43,14 +45,17 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:6000/health || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6000;echo -e \"GET /health HTTP/1.1\r\nhost: localhost:6000\r\nConnection: close\r\n\r\n\" >&3;grep \"HTTP/1.1 200 OK\" <&3"]
       retries: 60
       start_period: 10s
       timeout: 1s
 
   laci-services:
     image: lacisynchroni/services:latest
-    pull_policy: never
+    pull_policy: build
+    build:
+      context: ../..
+      target: services
     restart: on-failure
     environment:
       LaciSynchroni__DiscordBotToken: "${LACI_DISCORD_TOKEN}"
@@ -71,7 +76,10 @@ services:
 
   laci-auth:
     image: lacisynchroni/authservice:latest
-    pull_policy: never
+    pull_policy: build
+    build:
+      context: ../..
+      target: authservice
     restart: on-failure
     environment:
       LaciSynchroni__PublicOAuthBaseUri: "${LACI_PUBLIC_OAUTH_BASE_URI}"
@@ -94,7 +102,10 @@ services:
 
   laci-files:
     image: lacisynchroni/staticfilesserver:latest
-    pull_policy: never
+    pull_policy: build
+    build:
+      context: ../..
+      target: staticfilesserver
     restart: on-failure
     environment:
       LaciSynchroni__CdnFullUrl: "${LACI_CDNURL}"
@@ -106,8 +117,8 @@ services:
     volumes:
       - ../config/standalone/base.appsettings.json:/opt/LaciSynchroni/StaticFilesServer/base.appsettings.json
       - ../config/standalone/files.appsettings.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
-      - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
-      - ../data/files-standalone/:/lacicache/:rw
+      - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/
+      - static_files_cache:/opt/LaciSynchroni/StaticFilesServer/data/
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,7 +131,6 @@ services:
     volumes:
       - prometheus:/prometheus
       - ../config/standalone/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    user: "1000:1000"
 
   grafana:
     image: docker.io/grafana/grafana:latest
@@ -146,5 +156,6 @@ volumes:
   cache:
     driver: local
   postgresql:
+  static_files_cache:
   prometheus:
   grafana:

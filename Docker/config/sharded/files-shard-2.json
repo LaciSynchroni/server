@@ -31,7 +31,7 @@
         "ForcedDeletionOfFilesAfterHours": 2,
         "CacheSizeHardLimitInGiB": 5,
         "UnusedFileRetentionPeriodInDays": 14,
-        "CacheDirectory": "/lacicache/",
+		"CacheDirectory": "/opt/LaciSynchroni/StaticFilesServer/data/",
         "DownloadTimeoutSeconds": 30,
         "DownloadQueueSize": 50,
         "DownloadQueueReleaseSeconds": 15,

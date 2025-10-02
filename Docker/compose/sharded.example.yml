@@ -103,7 +103,7 @@ services:
       - ../config/sharded/files-shard-main.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
       - ../log/files-standalone/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-main/:/lacicache/:rw
+      - static_files_cache:/opt/LaciSynchroni/StaticFilesServer/data/
     depends_on:
       laci-server:
         condition: service_healthy
@@ -121,7 +121,7 @@ services:
       - ../config/sharded/files-shard-1.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
       - ../log/files-shard-1/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-1/:/lacicache/:rw
+      - static_files_cache:/opt/LaciSynchroni/StaticFilesServer/data/
     ports: 
       - 6201:6200/tcp
     depends_on:
@@ -136,7 +136,7 @@ services:
       - ../config/sharded/files-shard-2.json:/opt/LaciSynchroni/StaticFilesServer/appsettings.json
       - ../log/files-shard-2/:/opt/LaciSynchroni/StaticFilesServer/logs/:rw
       - postgres_socket:/var/run/postgresql/:rw
-      - ../data/files-shard-2/:/lacicache/:rw
+      - static_files_cache:/opt/LaciSynchroni/StaticFilesServer/data/
     ports: 
       - 6202:6200/tcp
     depends_on:
