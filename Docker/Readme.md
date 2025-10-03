@@ -1,11 +1,45 @@
 # Laci Synchroni Docker Setup
-This is primarily aimed at developers who want to spin up their own local server for development purposes without having to spin up a VM, but also works for production ready servers, granted you have the knowledge to configure it securely.
-Requires Docker to be installed on the machine.
+This is an easy to use setup that uses [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) to run Laci Synchroni on a server without exposing that server to the internet.
+You must have the following requirements met:
+- Git and Docker installed on the machine you want to run at
+- A Cloudflare account for Cloudflare Tunnel (it's free for non-commercial use)
+- A domain
 
-## 1. Configure ports + token
-Head to the `compose` directory, make a copy of the `.env.example` file named `.env`, and edit the environment variables inside of there with the appropriate values.
-The compose files provided uses Cloudflare Tunnels for simplified access to the services.
+If you still need a Cloudflare Tunnel, [you can follow the instructions here](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/).
 
+# Setup
+The following setup assumes you are using the ``standalone`` setup. The sharded setup is for larger servers. Should you need this,
+you probably already know how to adapt this guide to use ``sharded`` mode!
+
+## 1. Checkout this repo
+On your server:
+1. ``git clone https://github.com/LaciSynchroni/server.git laci``
+2. ``cd laci/Docker``
+
+You now have everything to start configuring the server before booting for the first time.
+
+## 2. Configuring environment
+Assuming you are still in the ``Docker`` directory, do the following copy commands:
+1. ``cp ./compose/.env.example .env``
+2. ``cp ./compose/standalone.example.yml ./compose/standalone.yml``
+3. ``cp ./config/standalone/authservice.appsettings.example.json ./config/standalone/authservice.appsettings.json``
+4. ``cp ./config/standalone/base.appsettings.example.json ./config/standalone/base.appsettings.json``
+5. ``cp ./config/standalone/files.appsettings.example.json ./config/standalone/files.appsettings.json``
+6. ``cp ./config/standalone/server.appsettings.example.json ./config/standalone/server.appsettings.json``
+7. ``cp ./config/standalone/services.appsettings.example.json ./config/standalone/services.appsettings.json``
+
+**Now edit the ``.env`` file.** Make sure to fill out all required values. The comments and pre-filled values should help guide you
+through it. **Please use secure passwords!**
+
+## 3. (Optional) Removing Grafana/Prometheus
+**Grafana and Prometheus provide you a dashboard with some insights, like network IO and storage usage**. They are not
+needed to run Laci Synchroni, but can be useful.
+
+You can, however, remove them if you run on a smaller server or simply don't have use for those.
+
+You can simply remove them out of the ``standalone.yml``
+
+## 4. Configuring Cloudflare Tunnel
 In your Cloudflare Tunnel, you should configure the following under "public hostnames" in this order:
 
 |   | Public hostname          | Path  | Service                  |
@@ -18,7 +52,7 @@ In your Cloudflare Tunnel, you should configure the following under "public host
 
 Naturally, you can also do the proxying with another service or on your own.
 
-## 2. Run the Laci Synchroni Server
+## 5. Run the Laci Synchroni Server
 Start the services using either `./linux.sh` or `.\windows.ps1`.
 There are two modes, which are mutually exclusive:
 - `--standalone` (`-Standalone` for Windows) to run the services as a single instance.
@@ -56,3 +90,6 @@ Here are a few examples:
 # Start in the foreground
 .\windows.ps1 -Standalone
 ```
+
+## 6 Testing and Next Steps
+Please check over on Discord on how to proceed from here on out.
