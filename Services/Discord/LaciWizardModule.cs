@@ -9,6 +9,8 @@ using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
 using StackExchange.Redis;
 using System.Text.RegularExpressions;
+using LaciSynchroni.Common.SignalR;
+using LaciSynchroni.Common.Dto.Server;
 
 namespace LaciSynchroni.Services.Discord;
 
