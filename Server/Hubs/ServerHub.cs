@@ -37,6 +37,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
     private readonly Uri _fileServerAddress;
     private readonly Version _expectedClientVersion;
     private readonly Lazy<LaciDbContext> _dbContextLazy;
+    private readonly MessageService _messageService;
     private LaciDbContext DbContext => _dbContextLazy.Value;
     private readonly int _maxCharaDataByUser;
     private readonly int _maxCharaDataByUserVanity;
@@ -45,7 +46,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
         IDbContextFactory<LaciDbContext> dbContextFactory, ILogger<ServerHub> logger, SystemInfoService systemInfoService,
         IConfigurationService<ServerConfiguration> configuration,
         IRedisDatabase redisDb, OnlineSyncedPairCacheService onlineSyncedPairCacheService, LaciCensus census,
-        GPoseLobbyDistributionService gPoseLobbyDistributionService)
+        GPoseLobbyDistributionService gPoseLobbyDistributionService, MessageService messageService)
     {
         _metrics = metrics;
         _systemInfoService = systemInfoService;
@@ -62,6 +63,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
         _onlineSyncedPairCacheService = onlineSyncedPairCacheService;
         _census = census;
         _gPoseLobbyDistributionService = gPoseLobbyDistributionService;
+        _messageService = messageService;
         _logger = new ServerHubLogger(this, logger);
         _dbContextLazy = new Lazy<LaciDbContext>(() => dbContextFactory.CreateDbContext());
     }
@@ -87,8 +89,9 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
 
         var dbUser = await DbContext.Users.SingleAsync(f => f.UID == UserUID).ConfigureAwait(false);
         dbUser.LastLoggedIn = DateTime.UtcNow;
-
-        await Clients.Caller.Client_ReceiveServerMessage(MessageSeverity.Information, $"Welcome to {_serverName} \"{_shardName}\", Current Online Users: {_systemInfoService.SystemInfoDto.OnlineUsers}").ConfigureAwait(false);
+        
+        var messageOfTheDay = _messageService.GetMessageOfTheDay();
+        await Clients.Caller.Client_ReceiveServerMessage(messageOfTheDay.Severity, messageOfTheDay.Message).ConfigureAwait(false);
 
         var defaultPermissions = await DbContext.UserDefaultPreferredPermissions.SingleOrDefaultAsync(u => u.UserUID == UserUID).ConfigureAwait(false);
         if (defaultPermissions == null)

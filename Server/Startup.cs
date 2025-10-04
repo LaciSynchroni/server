@@ -94,6 +94,7 @@ public class Startup
         services.Configure<LaciConfigurationBase>(config);
 
         services.AddSingleton<ServerTokenGenerator>();
+        services.AddSingleton<MessageService>();
         services.AddSingleton<SystemInfoService>();
         services.AddSingleton<OnlineSyncedPairCacheService>();
         services.AddHostedService(provider => provider.GetService<SystemInfoService>());
@@ -110,6 +111,7 @@ public class Startup
             services.AddSingleton<CharaDataCleanupService>();
             services.AddHostedService(provider => provider.GetService<CharaDataCleanupService>());
             services.AddHostedService<ClientPairPermissionsCleanupService>();
+            services.AddHostedService<PeriodicMessageService>();
         }
 
         services.AddSingleton<GPoseLobbyDistributionService>();

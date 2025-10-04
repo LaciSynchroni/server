@@ -39,6 +39,7 @@ public class ServerConfiguration : LaciConfigurationBase
     public Uri ServerPublicUri { get; set; } = new Uri("wss://noemptyuri");
     public string DiscordInvite { get; set; }
     public string ServerRules { get; set; }
+    public MessageConfiguration MessageConfiguration { get; set; } = new();
 
     public override string ToString()
     {
