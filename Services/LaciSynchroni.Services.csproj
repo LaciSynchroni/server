@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <None Include="appsettings.Development.json" />
+    <None Include="appsettings.Local.json" >
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

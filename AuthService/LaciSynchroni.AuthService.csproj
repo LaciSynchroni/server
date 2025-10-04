@@ -18,5 +18,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Shared\LaciSynchroni.Shared.csproj" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <None Include="appsettings.Local.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>
