@@ -29,6 +29,9 @@
     <None Include="appsettings.Development.json">
       <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug' and Exists('appsettings.Development.json')">Always</CopyToOutputDirectory>
     </None>
+    <Content Remove="appsettings.json" />
+    <Content Remove="appsettings.Example.json" />
   </ItemGroup>
+
 
 </Project>

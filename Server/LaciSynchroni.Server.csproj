@@ -17,8 +17,10 @@
     <None Include="appsettings.Development.json">
       <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug' and Exists('appsettings.Development.json')">Always</CopyToOutputDirectory>
     </None>
+    <Content Remove="appsettings.json" />
+    <Content Remove="appsettings.Example.json" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
     <PackageReference Include="IDisposableAnalyzers" Version="4.0.8">

@@ -546,3 +546,5 @@ Docker/run/compose/sharded.yml
 
 *appsettings.*.json
 !*appsettings.Example.json
+
+StaticFilesServer/laci-file-cache
