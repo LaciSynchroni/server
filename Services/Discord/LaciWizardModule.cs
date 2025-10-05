@@ -1,12 +1,12 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using System.Text.RegularExpressions;
 using LaciSynchroni.Shared.Utils.Configuration.Services;
@@ -47,9 +47,9 @@ public partial class LaciWizardModule : InteractionModuleBase
             return;
         }
 
-        EmbedBuilder eb = new();
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
 
-        Random rnd = new Random();
+        var rnd = new Random();
         var correctButton = rnd.Next(4) + 1;
         string nthButtonText = correctButton switch
         {
@@ -62,33 +62,70 @@ public partial class LaciWizardModule : InteractionModuleBase
 
         Emoji nthButtonEmoji = correctButton switch
         {
-            1 => new Emoji("⬅️"),
-            2 => new Emoji("🤖"),
-            3 => new Emoji("‼️"),
-            4 => new Emoji("✉️"),
+            1 => Emoji.Parse("🌅"),
+            2 => Emoji.Parse("🏞️"),
+            3 => Emoji.Parse("🌌"),
+            4 => Emoji.Parse("🌆"),
             _ => "unknown",
         };
 
-        eb.WithTitle("Laci Bot Services Captcha");
-        eb.WithDescription("You are seeing this embed because you interact with this bot for the first time since the bot has been restarted." + Environment.NewLine + Environment.NewLine
-            + "This bot __requires__ embeds for its function. To proceed, please verify you have embeds enabled." + Environment.NewLine
-            + $"## To verify you have embeds enabled __press on the **{nthButtonText}** button ({nthButtonEmoji}).__");
-        eb.WithColor(Color.LightOrange);
-
-        int incorrectButtonHighlight = 1;
+        int incorrectButtonHighlight;
         do
         {
             incorrectButtonHighlight = rnd.Next(4) + 1;
         }
         while (incorrectButtonHighlight == correctButton);
 
-        ComponentBuilder cb = new();
-        cb.WithButton("This", correctButton == 1 ? "wizard-home:false" : "wizard-captcha-fail:1", emote: new Emoji("⬅️"), style: incorrectButtonHighlight == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Bot", correctButton == 2 ? "wizard-home:false" : "wizard-captcha-fail:2", emote: new Emoji("🤖"), style: incorrectButtonHighlight == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Requires", correctButton == 3 ? "wizard-home:false" : "wizard-captcha-fail:3", emote: new Emoji("‼️"), style: incorrectButtonHighlight == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Embeds", correctButton == 4 ? "wizard-home:false" : "wizard-captcha-fail:4", emote: new Emoji("✉️"), style: incorrectButtonHighlight == 4 ? ButtonStyle.Primary : ButtonStyle.Secondary);
+        // There are 4 button styles we can use, Primary, Secondary, Danger and Success.
+        // We want to give each button a different style, randomized. To do this, we use rnd from above. 
+        // The enums start at 1, so we use the range of 1-4. Button styles should NOT be repeated, but we also do not want Link or Premium styles.
+        var buttonStyles = Enum.GetValues(typeof(ButtonStyle)).Cast<ButtonStyle>().Where(bs => bs != ButtonStyle.Link && bs != ButtonStyle.Premium).OrderBy(x => rnd.Next()).Take(4).ToArray();
 
-        await InitOrUpdateInteraction(init, eb, cb).ConfigureAwait(false);
+        var components = new ComponentBuilderV2()
+        {
+            Components = [
+                new ContainerBuilder()
+                    .WithAccentColor(Color.LightOrange)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Captcha")
+                    .WithTextDisplay("As this is your first time using the self-service since it has been restarted, you have to solve the captcha problem below to verify you are not a bot.")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                    .WithTextDisplay($"-# To solve the captcha, __press on the **{nthButtonText} button** ({nthButtonEmoji}).__")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false)
+                    .WithActionRow([
+                        new ButtonBuilder()
+                        {
+                            Label = "Limsa Lominsa",
+                            CustomId = correctButton == 1 ? "wizard-home:false" : "wizard-captcha-fail:1",
+                            Emote = Emoji.Parse("🌅"),
+                            Style = buttonStyles[0],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "New Gridania",
+                            CustomId = correctButton == 2 ? "wizard-home:false" : "wizard-captcha-fail:2",
+                            Emote = Emoji.Parse("🏞️"),
+                            Style = buttonStyles[1],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "Old Gridania",
+                            CustomId = correctButton == 3 ? "wizard-home:false" : "wizard-captcha-fail:3",
+                            Emote = Emoji.Parse("🌌"),
+                            Style = buttonStyles[2],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "Ul'dah",
+                            CustomId = correctButton == 4 ? "wizard-home:false" : "wizard-captcha-fail:4",
+                            Emote = Emoji.Parse("🌆"),
+                            Style = buttonStyles[3],
+                        },
+                    ]),
+            ],
+        };
+
+        await InitOrUpdateInteractionV2(init, components).ConfigureAwait(false);
     }
 
     private async Task InitOrUpdateInteraction(bool init, EmbedBuilder eb, ComponentBuilder cb)
@@ -107,17 +144,47 @@ public partial class LaciWizardModule : InteractionModuleBase
         }
     }
 
+    private async Task InitOrUpdateInteractionV2(bool init, ComponentBuilderV2 components)
+    {
+        if (init)
+        {
+            await RespondAsync(components: components.Build(), ephemeral: true).ConfigureAwait(false);
+            var resp = await GetOriginalResponseAsync().ConfigureAwait(false);
+            _botServices.ValidInteractions[Context.User.Id] = resp.Id;
+        }
+        else
+        {
+            await ModifyInteractionV2(components).ConfigureAwait(false);
+        }
+    }
+
     [ComponentInteraction("wizard-captcha-fail:*")]
     public async Task WizardCaptchaFail(int button)
     {
-        ComponentBuilder cb = new();
-        cb.WithButton("Restart (with Embeds enabled)", "wizard-captcha:false", emote: new Emoji("↩️"));
-        await ((Context.Interaction) as IComponentInteraction).UpdateAsync(m =>
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
+        var components = new ComponentBuilderV2()
         {
-            m.Embed = null;
-            m.Content = "You pressed the wrong button. You likely have embeds disabled. Enable embeds in your Discord client (Settings -> Chat -> \"Show embeds and preview website links pasted into chat\") and try again.";
-            m.Components = cb.Build();
-        }).ConfigureAwait(false);
+            Components = [
+                new ContainerBuilder()
+                    .WithAccentColor(Color.LightOrange)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Captcha")
+                    .WithTextDisplay("You failed the captcha. Please retry again.")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                    .WithActionRow([
+                        new ButtonBuilder()
+                        {
+                            Label = "Retry",
+                            CustomId = "wizard-captcha:false",
+                            Emote = Emoji.Parse("↩️"),
+                            Style = ButtonStyle.Primary
+                        },
+                    ]),
+            ],
+        };
+
+        await InitOrUpdateInteractionV2(init: false, components).ConfigureAwait(false);
 
         await _botServices.LogToChannel(LogType.CaptchaFailed, $"{Context.User.Mention} FAILED CAPTCHA").ConfigureAwait(false);
     }
@@ -279,6 +346,16 @@ public partial class LaciWizardModule : InteractionModuleBase
             m.Content = null;
             m.Embed = eb.Build();
             m.Components = cb.Build();
+        }).ConfigureAwait(false);
+    }
+
+    private async Task ModifyInteractionV2(ComponentBuilderV2 components)
+    {
+        await ((Context.Interaction) as IComponentInteraction).UpdateAsync(m =>
+        {
+            m.Content = null;
+            m.Embed = null;
+            m.Components = components.Build();
         }).ConfigureAwait(false);
     }
 
