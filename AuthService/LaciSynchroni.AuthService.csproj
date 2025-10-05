@@ -18,10 +18,16 @@
   <ItemGroup>
     <ProjectReference Include="..\Shared\LaciSynchroni.Shared.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
-    <None Include="appsettings.Local.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <None Include="appsettings.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="appsettings.Example.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="appsettings.Development.json">
+      <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug' and Exists('appsettings.Development.json')">Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

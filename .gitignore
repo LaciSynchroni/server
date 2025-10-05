@@ -544,4 +544,5 @@ Docker/run/config/standalone/*.appsettings.json
 Docker/run/compose/standalone.yml
 Docker/run/compose/sharded.yml
 
-*appsettings.Local.json
+*appsettings.*.json
+!*appsettings.Example.json

@@ -22,11 +22,11 @@ A simple developer setup is provided that takes care of providing you with depen
 https on your local machine.
 
 1. Start the dependencies: ``docker compose -f docker-composen.dependencies.yaml up -d``
-2. For each service, copy the ``appsettings.Local.Example.json`` to ``appsettings.Local.json``. The ``.Local.json`` are git-ignored
-so they are not committed on accident.
-3. Launch each service by using the ``(LOCAL)`` preconfigured launch config
+2. For each service, copy the ``appsettings.Example.json`` to ``appsettings.Development.json``. All configs with some sort of
+suffix are in .gitignore, except the example ones, so you don't accidentally commit them.
+3. Launch each service by using the ``(DEV)`` preconfigured launch config
 
-There is a launch configuration with the ``(LOCAL)`` suffix that is preconfigured against the redis and postgres in that
+There is a launch configuration with the ``(DEV)`` suffix that is preconfigured against the redis and postgres in that
 composefile. You can simply launch these configurations, and they should connect to that database.
 
 ## Bot Setup
@@ -34,7 +34,7 @@ If you need to interact with the Laci services beyond the basics, you will need 
 
 First create a bot [as outlined here](https://lacisynchroni.github.io/wiki/docs/hosting/tutorial-basics/bot-setup)
 
-After that, go to ``appsettings.Local.json`` in ``services`` and configure:
+After that, go to ``appsettings.Development.json`` in ``services`` and configure:
 - ``LaciSynchroni.DiscordBotToken`` to your token
 - ``LaciSynchroni.DiscordChannelForCommands`` to your self-service channel
 

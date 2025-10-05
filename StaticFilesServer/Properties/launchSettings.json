@@ -1,36 +1,12 @@
 ﻿{
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:21378",
-      "sslPort": 44331
-    }
-  },
   "profiles": {
-    "LaciSynchroni.StaticFilesServer": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "https://localhost:7094;http://localhost:5094",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "Laci Synchroni Files (LOCAL)": {
+    "Files (DEV)": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5003",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Local"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
   }
