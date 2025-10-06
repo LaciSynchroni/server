@@ -1,31 +1,38 @@
-using LaciSynchroni.Common.SignalR;
-using LaciSynchroni.Server.Hubs;
-using Microsoft.AspNetCore.SignalR;
+using LaciSynchroni.Shared.Models;
+using LaciSynchroni.Shared.Services;
+using LaciSynchroni.Shared.Utils.Configuration;
 
 namespace LaciSynchroni.Server.Services;
 
 public class PeriodicMessageService(
-    MessageService messageService,
-    IHubContext<ServerHub, IServerHub> hubContext,
+    MessagingService messagingService,
+    IConfigurationService<ServerConfiguration> serverConfig,
     ILogger<PeriodicMessageService> logger)
     : BackgroundService
 {
     private int _currentExecutionNumber;
 
+    private MessageConfiguration MessageConfiguration => serverConfig.GetValueOrDefault(
+        nameof(Shared.Utils.Configuration.MessageConfiguration),
+        MessageConfiguration.DefaultMessageConfig);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var delay = messageService.GetPeriodicMessageInterval();
+        var delay = MessageConfiguration.PeriodicMessageInterval;
         if (delay == null || delay.Value <= TimeSpan.Zero)
         {
-            logger.LogInformation("Periodic messages disabled: No LaciSynchroni.MessageConfiguration.PeriodicMessageInterval configured.");
+            logger.LogInformation(
+                "Periodic messages disabled: No LaciSynchroni.MessageConfiguration.PeriodicMessageInterval configured.");
             return;
         }
 
         if (delay.Value <= TimeSpan.FromMinutes(15))
         {
-            logger.LogInformation("Periodic messages disabled: LaciSynchroni.MessageConfiguration.PeriodicMessageInterval below 15 minutes. Don't spam your users!");
+            logger.LogInformation(
+                "Periodic messages disabled: LaciSynchroni.MessageConfiguration.PeriodicMessageInterval below 15 minutes. Don't spam your users!");
+            return;
         }
-        
+
         while (!stoppingToken.IsCancellationRequested)
         {
             await SendNextMessage().ConfigureAwait(false);
@@ -33,15 +40,29 @@ public class PeriodicMessageService(
         }
     }
 
-    private async Task SendNextMessage()
+    private Task SendNextMessage()
     {
-        var message = messageService.GetNextPeriodicMessage(_currentExecutionNumber);
+        var message = GetNextPeriodicMessage(_currentExecutionNumber);
         if (message == null)
         {
-            return;
+            return Task.CompletedTask;
         }
-        logger.LogInformation("Sending message with severity {Severity} to all clients: {Message}", message.Severity, message.Message);
-        await hubContext.Clients.All.Client_ReceiveServerMessage(message.Severity, message.Message).ConfigureAwait(false);
+
+        logger.LogInformation("Sending periodic message with severity {Severity} to all clients: {Message}",
+            message.Severity, message.Message);
         _currentExecutionNumber++;
+        return messagingService.SendMessageToAllClients(message);
+    }
+
+    private MessageWithSeverity? GetNextPeriodicMessage(int executionNumber)
+    {
+        var messageConfig = MessageConfiguration;
+        var messageCount = messageConfig.PeriodicMessages.Length;
+        if (messageCount <= 0)
+        {
+            return null;
+        }
+
+        return messageConfig.PeriodicMessages[executionNumber % messageCount];
     }
 }
