@@ -20,13 +20,9 @@ jobs:
       matrix:
         service:
           - name: server
-            dockerfile: Docker/build/Dockerfile.server
           - name: authservice
-            dockerfile: Docker/build/Dockerfile.authservice
           - name: staticfilesserver
-            dockerfile: Docker/build/Dockerfile.staticfilesserver
           - name: services
-            dockerfile: Docker/build/Dockerfile.services
 
     permissions:
       contents: read
@@ -59,15 +55,16 @@ jobs:
           tags: |
             # Strip 'v' prefix from version tags: v1.2.3 -> 1.2.3
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}},enable={{is_default}}
-            type=raw,value=latest,enable={{is_default && is_default_branch}}
+            type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
       
       - name: Build and push ${{ matrix.service.name }}
         id: push
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.service.dockerfile }}
+          file: Dockerfile
+          target: ${{ matrix.service.name }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
