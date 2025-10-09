@@ -19,9 +19,8 @@ public class JwtController : AuthControllerBase
         IDbContextFactory<LaciDbContext> dbContextFactory,
         SecretKeyAuthenticatorService secretKeyAuthenticatorService,
         IConfigurationService<AuthServiceConfiguration> configuration,
-        IDatabase redisDb)
-            : base(logger, dbContextFactory, secretKeyAuthenticatorService,
-                configuration, redisDb)
+        IDatabase redisDb, GeoIpService geoIpService)
+            : base(logger, dbContextFactory, secretKeyAuthenticatorService, configuration, redisDb, geoIpService)
     {
     }
 
