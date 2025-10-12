@@ -6,10 +6,10 @@ using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using System.Text.RegularExpressions;
-using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -164,8 +164,7 @@ public partial class LaciWizardModule : InteractionModuleBase
         var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
 
         var components = new ComponentBuilderV2()
-        {
-            Components = [
+            .WithContainer(
                 new ContainerBuilder()
                     .WithAccentColor(Color.LightOrange)
                     .WithTextDisplay($"# {serverName} Self-Service")
@@ -174,15 +173,14 @@ public partial class LaciWizardModule : InteractionModuleBase
                     .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
                     .WithActionRow([
                         new ButtonBuilder()
-                        {
-                            Label = "Retry",
-                            CustomId = "wizard-captcha:false",
-                            Emote = Emoji.Parse("↩️"),
-                            Style = ButtonStyle.Primary
-                        },
-                    ]),
-            ],
-        };
+                            .WithLabel("Retry")
+                            .WithStyle(ButtonStyle.Primary)
+                            .WithCustomId("wizard-captcha:false")
+                            .WithEmote(Emoji.Parse("↩️")),
+                    ])
+            );
+
+
 
         await InitOrUpdateInteractionV2(init: false, components).ConfigureAwait(false);
 
@@ -204,21 +202,112 @@ public partial class LaciWizardModule : InteractionModuleBase
         var account = await db.LodeStoneAuth.Include(u => u.User).FirstOrDefaultAsync(u => u.DiscordId == Context.User.Id && u.StartedAt == null).ConfigureAwait(false);
         bool hasAccount = account != null;
 
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
         if (init)
         {
             bool isBanned = await db.BannedRegistrations.AnyAsync(u => u.DiscordIdOrLodestoneAuth == Context.User.Id.ToString()).ConfigureAwait(false);
 
             if (isBanned)
             {
-                EmbedBuilder ebBanned = new();
-                ebBanned.WithTitle("You are not welcome here");
-                ebBanned.WithDescription("Your Discord account is banned");
-                await RespondAsync(embed: ebBanned.Build(), ephemeral: true).ConfigureAwait(false);
+                var bannedComponents = new ComponentBuilderV2()
+                    .WithContainer(
+                        new ContainerBuilder()
+                            .WithAccentColor(Color.Red)
+                            .WithTextDisplay($"# {serverName} Self-Service")
+                            .WithTextDisplay("## Account Banned")
+                            .WithTextDisplay("Your access to this service has been revoked.")
+                    );
+
+                await RespondAsync(components: bannedComponents.Build(), ephemeral: true).ConfigureAwait(false);
                 return;
             }
         }
 
-        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+        var components = new ComponentBuilderV2();
+        var container = new ContainerBuilder()
+            .WithTextDisplay($"# {serverName} Self-Service")
+            .WithTextDisplay("You are permitted to perform these actions:")
+            .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false);
+
+        var USE_SELECT_MENUS = true;
+
+        var permittedActions = "";
+
+        List<ActionRowBuilder> actionRows = new();
+
+        var actionRow = new ActionRowBuilder();
+        var selectMenu = new SelectMenuBuilder("wizard:menu-picker", placeholder: "Select an action");
+        actionRow.AddComponent(selectMenu);
+
+        void AddAction(string title, string wizardId, string description, IEmote emote, ButtonStyle buttonStyle = ButtonStyle.Secondary)
+        {
+            if (USE_SELECT_MENUS)
+            {
+                permittedActions = "-# Not Empty";
+                selectMenu.AddOption(title, wizardId, description, emote);
+            }
+            else
+            {
+                permittedActions += Environment.NewLine
+                + $"### {emote} {title}"
+                + Environment.NewLine
+                + description;
+
+                if (actionRows.Count > 0 && actionRows[^1] != null && actionRows[^1].ComponentCount() < 5)
+                {
+                    _logger.LogInformation("Using existing action row");
+                    actionRows[^1].AddComponent(new ButtonBuilder(title, wizardId, buttonStyle, emote: emote));
+                }
+                else
+                {
+                    _logger.LogInformation("Created new action row");
+                    var newActionRow = new ActionRowBuilder();
+                    newActionRow.AddComponent(new ButtonBuilder(title, wizardId, buttonStyle, emote: emote));
+                    actionRows.Add(newActionRow);
+                }
+            }
+        }
+
+        if (!hasAccount)
+        {
+
+            AddAction("Register", "wizard-register-verify-check:OK", "Register a new service account", Emoji.Parse("🌒"));
+        }
+        else
+        {
+            AddAction("User Info", "wizard-userinfo", "Check your service account status", Emoji.Parse("ℹ️"));
+            AddAction("Recover", "wizard-recover", "Recover your secret key", Emoji.Parse("🏥"));
+            AddAction("Secondary UID", "wizard-secondary", "Create a secondary UID", Emoji.Parse("2️⃣"));
+            AddAction("Vanity ID", "wizard-vanity", "Set a Vanity UID", Emoji.Parse("💅"));
+            if (account.User.IsAdmin)
+            {
+                AddAction("Block Mod", "wizard-blockmod", "Add a mod to be blocked from being shared", Emoji.Parse("🚫"));
+            }
+            AddAction("Delete", "wizard-delete", "Delete your secondary UIDs or service account", Emoji.Parse("⚠️"), ButtonStyle.Danger);
+        }
+
+
+        if (USE_SELECT_MENUS == false)
+        {
+            container.WithTextDisplay(permittedActions);
+
+            container.WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true);
+
+            for (var actionRowIndex = 0; actionRowIndex < actionRows.Count; actionRowIndex++)
+            {
+                container.WithActionRow(actionRows[actionRowIndex]);
+            }
+        }
+        else
+        {
+            container.WithActionRow(actionRow);
+        }
+
+        components.WithContainer(container);
+
+        await InitOrUpdateInteractionV2(init, components).ConfigureAwait(false);
+        return;
 
         EmbedBuilder eb = new();
         eb.WithTitle($"Welcome to the {serverName} Service Bot for this server");
@@ -254,6 +343,37 @@ public partial class LaciWizardModule : InteractionModuleBase
         await InitOrUpdateInteraction(init, eb, cb).ConfigureAwait(false);
     }
 
+    [ComponentInteraction("wizard:menu-picker")]
+    public async Task MenuPicker(string wizardId)
+    {
+        switch (wizardId)
+        {
+            case "wizard-register-verify-check:OK":
+                await ComponentRegister().ConfigureAwait(false);
+                break;
+            case "wizard-userinfo":
+                await ComponentUserInfo().ConfigureAwait(false);
+                break;
+            case "wizard-recover":
+                await ComponentRecover().ConfigureAwait(false);
+                break;
+            case "wizard-secondary":
+                await ComponentSecondary().ConfigureAwait(false);
+                break;
+            case "wizard-vanity":
+                await ComponentVanity().ConfigureAwait(false);
+                break;
+            case "wizard-blockmod":
+                await ComponentBlockMod().ConfigureAwait(false);
+                break;
+            case "wizard-delete":
+                await ComponentDelete().ConfigureAwait(false);
+                break;
+            default:
+                // TODO Show unexpected wizard module
+                break;
+        }
+    }
     public class VanityUidModal : IModal
     {
         public string Title => "Set Vanity UID";
@@ -314,13 +434,21 @@ public partial class LaciWizardModule : InteractionModuleBase
             return true;
         }
 
-        EmbedBuilder eb = new();
-        eb.WithTitle("Session expired");
-        eb.WithDescription("This session has expired since you have either again pressed \"Start\" on the initial message or the bot has been restarted." + Environment.NewLine + Environment.NewLine
-            + "Please use the newly started interaction or start a new one.");
-        eb.WithColor(Color.Red);
-        ComponentBuilder cb = new();
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(
+                new ContainerBuilder()
+                    .WithAccentColor(Color.Red)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Session expired")
+                    .WithTextDisplay("This session has expired since you have either again pressed **➡️ Start** on the initial message or the self-service has been restarted."
+                        + Environment.NewLine
+                        + Environment.NewLine
+                        + "Please use the newly started self-service or start a new one.")
+            );
+
+        await InitOrUpdateInteractionV2(init: false, components).ConfigureAwait(false);
 
         return false;
     }
@@ -328,6 +456,11 @@ public partial class LaciWizardModule : InteractionModuleBase
     private void AddHome(ComponentBuilder cb)
     {
         cb.WithButton("Return to Home", "wizard-home:false", ButtonStyle.Secondary, new Emoji("🏠"));
+    }
+
+    private void AddHomeV2(ActionRowBuilder actionRow)
+    {
+        actionRow.AddComponent(new ButtonBuilder("Return to Home", "wizard-home:false", ButtonStyle.Secondary, emote: Emoji.Parse("🏠")));
     }
 
     private async Task ModifyModalInteraction(EmbedBuilder eb, ComponentBuilder cb)
@@ -378,6 +511,28 @@ public partial class LaciWizardModule : InteractionModuleBase
                     entry.PrimaryUserUID == null ? new Emoji("1️⃣") : new Emoji("2️⃣"));
             }
             cb.WithSelectMenu(sb);
+        }
+    }
+
+    private async Task AddUserSelectionV2(LaciDbContext db, ActionRowBuilder actionRow, string customId)
+    {
+        var discordId = Context.User.Id;
+        var existingAuth = await db.LodeStoneAuth.Include(u => u.User).SingleOrDefaultAsync(e => e.DiscordId == discordId).ConfigureAwait(false);
+        if (existingAuth != null)
+        {
+            SelectMenuBuilder sb = new();
+            sb.WithPlaceholder("Select a UID");
+            sb.WithCustomId(customId);
+            var existingUids = await db.Auth.Include(u => u.User).Where(u => u.UserUID == existingAuth.User.UID || u.PrimaryUserUID == existingAuth.User.UID)
+                .OrderByDescending(u => u.PrimaryUser == null).ToListAsync().ConfigureAwait(false);
+            foreach (var entry in existingUids)
+            {
+                sb.AddOption(string.IsNullOrEmpty(entry.User.Alias) ? entry.UserUID : entry.User.Alias,
+                    entry.UserUID,
+                    !string.IsNullOrEmpty(entry.User.Alias) ? entry.User.UID : null,
+                    entry.PrimaryUserUID == null ? new Emoji("1️⃣") : new Emoji("2️⃣"));
+            }
+            actionRow.WithSelectMenu(sb);
         }
     }
 

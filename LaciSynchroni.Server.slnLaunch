@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Services",
+    "Projects": [
+      {
+        "Path": "Server\\LaciSynchroni.Server.csproj",
+        "Action": "StartWithoutDebugging",
+        "DebugTarget": "Main (DEV)"
+      },
+      {
+        "Path": "Services\\LaciSynchroni.Services.csproj",
+        "Action": "Start",
+        "DebugTarget": "Services (DEV)"
+      }
+    ]
+  }
+]

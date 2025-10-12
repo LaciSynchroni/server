@@ -1,36 +1,29 @@
 ﻿using Discord;
 using Discord.Interactions;
-using Microsoft.EntityFrameworkCore;
-using Prometheus;
 using LaciSynchroni.Common.Data.Enum;
 using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using Microsoft.EntityFrameworkCore;
+using Prometheus;
 using StackExchange.Redis;
 using System.Net.Http.Headers;
 
+#nullable enable
+
 namespace LaciSynchroni.Services.Discord;
 
-public class LaciModule : InteractionModuleBase
+public class LaciModule(ILogger<LaciModule> logger, IServiceProvider services,
+    IConfigurationService<ServicesConfiguration> servicesConfig,
+    IConnectionMultiplexer connectionMultiplexer, ServerTokenGenerator serverTokenGenerator) : InteractionModuleBase
 {
-    private readonly ILogger<LaciModule> _logger;
-    private readonly IServiceProvider _services;
-    private readonly IConfigurationService<ServicesConfiguration> _servicesConfig;
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly ServerTokenGenerator _serverTokenGenerator;
-
-    public LaciModule(ILogger<LaciModule> logger, IServiceProvider services,
-        IConfigurationService<ServicesConfiguration> servicesConfig,
-        IConnectionMultiplexer connectionMultiplexer, ServerTokenGenerator serverTokenGenerator)
-    {
-        _logger = logger;
-        _services = services;
-        _servicesConfig = servicesConfig;
-        _connectionMultiplexer = connectionMultiplexer;
-        _serverTokenGenerator = serverTokenGenerator;
-    }
+    private readonly ILogger<LaciModule> _logger = logger;
+    private readonly IServiceProvider _services = services;
+    private readonly IConfigurationService<ServicesConfiguration> _servicesConfig = servicesConfig;
+    private readonly IConnectionMultiplexer _connectionMultiplexer = connectionMultiplexer;
+    private readonly ServerTokenGenerator _serverTokenGenerator = serverTokenGenerator;
 
     [SlashCommand("userinfo", "Shows you your user information")]
     public async Task UserInfo([Summary("secondary_uid", "(Optional) Your secondary UID")] string? secondaryUid = null,
@@ -44,9 +37,9 @@ public class LaciModule : InteractionModuleBase
         {
             EmbedBuilder eb = new();
 
-            eb = await HandleUserInfo(eb, Context.User.Id, secondaryUid, discordUser?.Id ?? null, uid);
+            eb = await HandleUserInfo(eb, Context.User.Id, secondaryUid, discordUser?.Id ?? null, uid).ConfigureAwait(true);
 
-            await RespondAsync(embeds: new[] { eb.Build() }, ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(embeds: [eb.Build()], ephemeral: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -54,7 +47,7 @@ public class LaciModule : InteractionModuleBase
             eb.WithTitle("An error occured");
             eb.WithDescription("Please report this error to bug-reports: " + Environment.NewLine + ex.Message + Environment.NewLine + ex.StackTrace + Environment.NewLine);
 
-            await RespondAsync(embeds: new Embed[] { eb.Build() }, ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(embeds: [eb.Build()], ephemeral: true).ConfigureAwait(false);
         }
     }
 
@@ -63,13 +56,13 @@ public class LaciModule : InteractionModuleBase
     {
         _logger.LogInformation("SlashCommand:{userId}:{Method}:{params}",
             Context.Interaction.User.Id, nameof(UserAdd),
-            string.Join(",", new[] { $"{nameof(desiredUid)}:{desiredUid}" }));
+            string.Join(',', new[] { $"{nameof(desiredUid)}:{desiredUid}" }));
 
         try
         {
-            var embed = await HandleUserAdd(desiredUid, Context.User.Id);
+            var embed = await HandleUserAdd(desiredUid, Context.User.Id).ConfigureAwait(true);
 
-            await RespondAsync(embeds: new[] { embed }, ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(embeds: [embed], ephemeral: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -77,7 +70,7 @@ public class LaciModule : InteractionModuleBase
             eb.WithTitle("An error occured");
             eb.WithDescription("Please report this error to bug-reports: " + Environment.NewLine + ex.Message + Environment.NewLine + ex.StackTrace + Environment.NewLine);
 
-            await RespondAsync(embeds: new Embed[] { eb.Build() }, ephemeral: true).ConfigureAwait(false);
+            await RespondAsync(embeds: [eb.Build()], ephemeral: true).ConfigureAwait(false);
         }
     }
 

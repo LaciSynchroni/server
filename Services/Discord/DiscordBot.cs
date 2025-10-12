@@ -6,9 +6,9 @@ using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
-using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -186,7 +186,7 @@ internal class DiscordBot : IHostedService
     {
         var serverName = _configurationService.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
 
-        var cb = new ComponentBuilderV2()
+        var components = new ComponentBuilderV2()
             .WithContainer(
                 new ContainerBuilder()
                 .WithMediaGallery(new MediaGalleryBuilder()
@@ -199,19 +199,18 @@ internal class DiscordBot : IHostedService
                 .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
                 .WithTextDisplay("-# Press **➡️ Start** to start a new self-service session.")
                 .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false)
-                .WithActionRow([new ButtonBuilder()
-                    {
-                        Label = "Start",
-                        Style = ButtonStyle.Primary,
-                        CustomId = "wizard-captcha:true",
-                        Emote = Emoji.Parse("➡️"),
-                    },
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("Start")
+                        .WithStyle(ButtonStyle.Primary)
+                        .WithCustomId("wizard-captcha:true")
+                        .WithEmote(Emoji.Parse("➡️")),
                 ])
             );
 
         if (prevMessage == null)
         {
-            var msg = await channel.SendMessageAsync(components: cb.Build()).ConfigureAwait(false);
+            var msg = await channel.SendMessageAsync(components: components.Build()).ConfigureAwait(false);
             try
             {
                 await msg.PinAsync().ConfigureAwait(false);
@@ -225,7 +224,7 @@ internal class DiscordBot : IHostedService
         {
             await prevMessage.ModifyAsync(p =>
             {
-                p.Components = cb.Build();
+                p.Components = components.Build();
             }).ConfigureAwait(false);
         }
     }
