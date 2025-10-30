@@ -22,16 +22,18 @@ public abstract class AuthControllerBase : Controller
     protected readonly IConfigurationService<AuthServiceConfiguration> Configuration;
     protected readonly IDbContextFactory<LaciDbContext> DbContextFactory;
     protected readonly SecretKeyAuthenticatorService SecretKeyAuthenticatorService;
+    private readonly GeoIpService _geoIpService;
     private readonly IDatabase _redis;
 
     protected AuthControllerBase(ILogger logger,
     IDbContextFactory<LaciDbContext> dbContextFactory,
     SecretKeyAuthenticatorService secretKeyAuthenticatorService,
     IConfigurationService<AuthServiceConfiguration> configuration,
-    IDatabase redisDb)
+    IDatabase redisDb, GeoIpService geoIpService)
     {
         Logger = logger;
         _redis = redisDb;
+        _geoIpService = geoIpService;
         DbContextFactory = dbContextFactory;
         SecretKeyAuthenticatorService = secretKeyAuthenticatorService;
         Configuration = configuration;
@@ -105,6 +107,7 @@ public abstract class AuthControllerBase : Controller
             new Claim(LaciClaimTypes.CharaIdent, charaIdent),
             new Claim(LaciClaimTypes.Alias, alias),
             new Claim(LaciClaimTypes.Expires, DateTime.UtcNow.AddHours(6).Ticks.ToString(CultureInfo.InvariantCulture)),
+            new Claim(LaciClaimTypes.Continent, await _geoIpService.GetCountryFromIp(HttpContext))
         });
 
         return Content(token.RawData);
