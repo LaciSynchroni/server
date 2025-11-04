@@ -92,6 +92,7 @@ public class Startup
 
         services.Configure<ServerConfiguration>(config);
         services.Configure<LaciConfigurationBase>(config);
+        services.Configure<AuthServiceConfiguration>(config);
 
         services.AddSingleton<ServerTokenGenerator>();
         services.AddSingleton<SystemInfoService>();
@@ -333,14 +334,17 @@ public class Startup
         {
             services.AddSingleton<IConfigurationService<ServerConfiguration>, LaciConfigurationServiceClient<ServerConfiguration>>();
             services.AddSingleton<IConfigurationService<LaciConfigurationBase>, LaciConfigurationServiceClient<LaciConfigurationBase>>();
+            services.AddSingleton<IConfigurationService<AuthServiceConfiguration>, LaciConfigurationServiceServer<AuthServiceConfiguration>>();
 
             services.AddHostedService(p => (LaciConfigurationServiceClient<ServerConfiguration>)p.GetService<IConfigurationService<ServerConfiguration>>());
             services.AddHostedService(p => (LaciConfigurationServiceClient<LaciConfigurationBase>)p.GetService<IConfigurationService<LaciConfigurationBase>>());
+            services.AddHostedService(p => (LaciConfigurationServiceClient<AuthServiceConfiguration>)p.GetService<IConfigurationService<AuthServiceConfiguration>>());
         }
         else
         {
             services.AddSingleton<IConfigurationService<ServerConfiguration>, LaciConfigurationServiceServer<ServerConfiguration>>();
             services.AddSingleton<IConfigurationService<LaciConfigurationBase>, LaciConfigurationServiceServer<LaciConfigurationBase>>();
+            services.AddSingleton<IConfigurationService<AuthServiceConfiguration>, LaciConfigurationServiceServer<AuthServiceConfiguration>>();
         }
     }
 
