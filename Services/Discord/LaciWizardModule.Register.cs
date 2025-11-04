@@ -5,6 +5,10 @@ using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Common.Dto.Server;
+using LaciSynchroni.Common.SignalR;
+using MessagePack;
+using System.Text.Json;
 using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
@@ -143,18 +147,35 @@ public partial class LaciWizardModule
         eb.WithColor(Color.Green);
         using var db = await GetDbContext().ConfigureAwait(false);
         var (uid, key) = await HandleAddUser(db).ConfigureAwait(false);
+        QuickConnectDto quickConnectInfo = new()
+        {
+            ServerName = _serverConfig.GetValue<string>(nameof(ServerConfiguration.ServerName)).ToString(),
+            ServerURI = _serverConfig.GetValue<Uri>(nameof(ServerConfiguration.ServerPublicUri)).ToString(),
+            SecretKey = key
+        };
+
+        var qcMessagePack = MessagePackSerializer.Serialize(quickConnectInfo, MessagePackSerializerOptions.Standard);
+        var qcJson = JsonSerializer.Serialize(quickConnectInfo, new JsonSerializerOptions { WriteIndented = false, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, IncludeFields = true });
+
+        var messagePackBase64 = System.Convert.ToBase64String(qcMessagePack);
+        var jsonBase64 = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(qcJson));
+
         eb.WithTitle($"Registration successful, your UID: {uid}");
-        eb.WithDescription("This is your private secret key. Do not share this private secret key with anyone. **If you lose it, it is irrevocably lost.**"
+        eb.WithDescription("Use this quick connect code in the onboarding UI to quickly connect to this service."
                                      + Environment.NewLine + Environment.NewLine
-                                     + "**__NOTE: Secret keys are considered legacy. Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**"
+                                     + $"***Quick connect code***: ```{messagePackBase64}```"
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "Already connected the server? Use the secret key below. **If you lose it, you will have to recover your account through this bot.**"
                                      + Environment.NewLine + Environment.NewLine
                                      + $"||**`{key}`**||"
                                      + Environment.NewLine + Environment.NewLine
-                                     + "If you want to continue using legacy authentication, enter this key in Laci Synchroni and hit save to connect to the service."
-                                     + Environment.NewLine
+                                     + "**__Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**"
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "If you want to continue using secret key authentication, enter this key or the above quick connect code in Laci Synchroni and hit save to connect to the service."
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "**DO NOT SHARE ANY OF THIS INFO WITH ANYONE OR YOUR ACCOUNT MAY BE COMPROMISED.**"
+                                     + Environment.NewLine + Environment.NewLine
                                      + "__NOTE: The Secret Key only contains the letters ABCDEF and numbers 0 - 9.__"
-                                     + Environment.NewLine
-                                     + "You should connect as soon as possible to not get caught by the automatic cleanup process."
                                      + Environment.NewLine
                                      + "Have fun.");
         AddHome(cb);
@@ -196,6 +217,7 @@ public partial class LaciWizardModule
         }
 
         string lodestoneAuth = await GenerateLodestoneAuth(Context.User.Id, hashedLodestoneId, db).ConfigureAwait(false);
+
         // check if lodestone id is already in db
         embed.WithTitle("Authorize your character");
         embed.WithDescription("Add following key to your character profile at https://na.finalfantasyxiv.com/lodestone/my/setting/profile/"
