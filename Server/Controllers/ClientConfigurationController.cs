@@ -26,7 +26,6 @@ public class ClientConfigurationController(
         {
             ServerName = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.ServerName), "Laci Synchroni"),
             ServerVersion = Assembly.GetExecutingAssembly().GetName().Version,
-            ServerUri = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.ServerPublicUri), new Uri("wss://noemptyuri")),
             HubUri = IServerHub.Path.Equals("/hub") ? null : new Uri(serverConfig.GetValueOrDefault(nameof(ServerConfiguration.ServerPublicUri), new Uri("wss://noemptyuri")), IServerHub.Path),
             DiscordInvite = serverConfig.GetValueOrDefault<string>(nameof(ServerConfiguration.DiscordInvite), defaultValue: null),
             ServerRules = serverConfig.GetValueOrDefault<string>(nameof(ServerConfiguration.ServerRules), defaultValue: null),
