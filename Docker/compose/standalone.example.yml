@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: "${LACI_POSTGRES_USER}"
       POSTGRES_PASSWORD: "${LACI_POSTGRES_PASSWORD}"
     volumes:
-      - postgresql:/var/lib/postgresql/data
+      - postgresql:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${LACI_POSTGRES_USER} -d ${LACI_POSTGRES_DB}"]
       interval: 5s
