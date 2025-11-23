@@ -62,6 +62,8 @@ services:
       LaciSynchroni__Jwt: "${LACI_JWT}"
       LaciSynchroni__JwtKeyId: "${LACI_JWT_KEY_ID}"
       LaciSynchroni__RedisConnectionString: "redis,password=${LACI_REDIS_PASSWORD}"
+      LaciSynchroni__DiscordChannelForCommands: "${LACI_DISCORD_SELF_SERVICE_CHANNEL_ID}"
+      LaciSynchroni__DiscordChannelForBotLog: "${LACI_DISCORD_BOT_LOG_CHANNEL_ID}"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${LACI_POSTGRES_DB};Username=${LACI_POSTGRES_USER};Password=${LACI_POSTGRES_PASSWORD};Keepalive=15;Minimum Pool Size=10;Maximum Pool Size=50;No Reset On Close=true;Max Auto Prepare=50;Enlist=false"
       DOTNET_USE_POLLING_FILE_WATCHER: 1
     volumes:
