@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: docker.io/postgres:18
+    image: docker.io/postgres:${PG_VERSION}
     command: ["postgres", "-c", "log_statement=all"]
     restart: always
     environment:
