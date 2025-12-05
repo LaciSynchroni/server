@@ -1,12 +1,13 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Shared.Utils.Configuration.Services;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using System.Text.RegularExpressions;
 using LaciSynchroni.Common.SignalR;
@@ -49,9 +50,9 @@ public partial class LaciWizardModule : InteractionModuleBase
             return;
         }
 
-        EmbedBuilder eb = new();
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
 
-        Random rnd = new Random();
+        var rnd = new Random();
         var correctButton = rnd.Next(4) + 1;
         string nthButtonText = correctButton switch
         {
@@ -64,33 +65,70 @@ public partial class LaciWizardModule : InteractionModuleBase
 
         Emoji nthButtonEmoji = correctButton switch
         {
-            1 => new Emoji("⬅️"),
-            2 => new Emoji("🤖"),
-            3 => new Emoji("‼️"),
-            4 => new Emoji("✉️"),
+            1 => Emoji.Parse("🌅"),
+            2 => Emoji.Parse("🏞️"),
+            3 => Emoji.Parse("🌌"),
+            4 => Emoji.Parse("🌆"),
             _ => "unknown",
         };
 
-        eb.WithTitle("Laci Bot Services Captcha");
-        eb.WithDescription("You are seeing this embed because you interact with this bot for the first time since the bot has been restarted." + Environment.NewLine + Environment.NewLine
-            + "This bot __requires__ embeds for its function. To proceed, please verify you have embeds enabled." + Environment.NewLine
-            + $"## To verify you have embeds enabled __press on the **{nthButtonText}** button ({nthButtonEmoji}).__");
-        eb.WithColor(Color.LightOrange);
-
-        int incorrectButtonHighlight = 1;
+        int incorrectButtonHighlight;
         do
         {
             incorrectButtonHighlight = rnd.Next(4) + 1;
         }
         while (incorrectButtonHighlight == correctButton);
 
-        ComponentBuilder cb = new();
-        cb.WithButton("This", correctButton == 1 ? "wizard-home:false" : "wizard-captcha-fail:1", emote: new Emoji("⬅️"), style: incorrectButtonHighlight == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Bot", correctButton == 2 ? "wizard-home:false" : "wizard-captcha-fail:2", emote: new Emoji("🤖"), style: incorrectButtonHighlight == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Requires", correctButton == 3 ? "wizard-home:false" : "wizard-captcha-fail:3", emote: new Emoji("‼️"), style: incorrectButtonHighlight == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary);
-        cb.WithButton("Embeds", correctButton == 4 ? "wizard-home:false" : "wizard-captcha-fail:4", emote: new Emoji("✉️"), style: incorrectButtonHighlight == 4 ? ButtonStyle.Primary : ButtonStyle.Secondary);
+        // There are 4 button styles we can use, Primary, Secondary, Danger and Success.
+        // We want to give each button a different style, randomized. To do this, we use rnd from above. 
+        // The enums start at 1, so we use the range of 1-4. Button styles should NOT be repeated, but we also do not want Link or Premium styles.
+        var buttonStyles = Enum.GetValues(typeof(ButtonStyle)).Cast<ButtonStyle>().Where(bs => bs != ButtonStyle.Link && bs != ButtonStyle.Premium).OrderBy(x => rnd.Next()).Take(4).ToArray();
 
-        await InitOrUpdateInteraction(init, eb, cb).ConfigureAwait(false);
+        var components = new ComponentBuilderV2()
+        {
+            Components = [
+                new ContainerBuilder()
+                    .WithAccentColor(Color.LightOrange)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Captcha")
+                    .WithTextDisplay("As this is your first time using the self-service since it has been restarted, you have to solve the captcha problem below to verify you are not a bot.")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                    .WithTextDisplay($"-# To solve the captcha, __press on the **{nthButtonText} button** ({nthButtonEmoji}).__")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false)
+                    .WithActionRow([
+                        new ButtonBuilder()
+                        {
+                            Label = "Limsa Lominsa",
+                            CustomId = correctButton == 1 ? "wizard-home:false" : "wizard-captcha-fail:1",
+                            Emote = Emoji.Parse("🌅"),
+                            Style = buttonStyles[0],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "New Gridania",
+                            CustomId = correctButton == 2 ? "wizard-home:false" : "wizard-captcha-fail:2",
+                            Emote = Emoji.Parse("🏞️"),
+                            Style = buttonStyles[1],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "Old Gridania",
+                            CustomId = correctButton == 3 ? "wizard-home:false" : "wizard-captcha-fail:3",
+                            Emote = Emoji.Parse("🌌"),
+                            Style = buttonStyles[2],
+                        },
+                        new ButtonBuilder()
+                        {
+                            Label = "Ul'dah",
+                            CustomId = correctButton == 4 ? "wizard-home:false" : "wizard-captcha-fail:4",
+                            Emote = Emoji.Parse("🌆"),
+                            Style = buttonStyles[3],
+                        },
+                    ]),
+            ],
+        };
+
+        await InitOrUpdateInteractionV2(init, components).ConfigureAwait(false);
     }
 
     private async Task InitOrUpdateInteraction(bool init, EmbedBuilder eb, ComponentBuilder cb)
@@ -109,17 +147,45 @@ public partial class LaciWizardModule : InteractionModuleBase
         }
     }
 
+    private async Task InitOrUpdateInteractionV2(bool init, ComponentBuilderV2 components)
+    {
+        if (init)
+        {
+            await RespondAsync(components: components.Build(), ephemeral: true).ConfigureAwait(false);
+            var resp = await GetOriginalResponseAsync().ConfigureAwait(false);
+            _botServices.ValidInteractions[Context.User.Id] = resp.Id;
+        }
+        else
+        {
+            await ModifyInteractionV2(components).ConfigureAwait(false);
+        }
+    }
+
     [ComponentInteraction("wizard-captcha-fail:*")]
     public async Task WizardCaptchaFail(int button)
     {
-        ComponentBuilder cb = new();
-        cb.WithButton("Restart (with Embeds enabled)", "wizard-captcha:false", emote: new Emoji("↩️"));
-        await ((Context.Interaction) as IComponentInteraction).UpdateAsync(m =>
-        {
-            m.Embed = null;
-            m.Content = "You pressed the wrong button. You likely have embeds disabled. Enable embeds in your Discord client (Settings -> Chat -> \"Show embeds and preview website links pasted into chat\") and try again.";
-            m.Components = cb.Build();
-        }).ConfigureAwait(false);
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(
+                new ContainerBuilder()
+                    .WithAccentColor(Color.LightOrange)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Captcha")
+                    .WithTextDisplay("You failed the captcha. Please retry again.")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                    .WithActionRow([
+                        new ButtonBuilder()
+                            .WithLabel("Retry")
+                            .WithStyle(ButtonStyle.Primary)
+                            .WithCustomId("wizard-captcha:false")
+                            .WithEmote(Emoji.Parse("↩️")),
+                    ])
+            );
+
+
+
+        await InitOrUpdateInteractionV2(init: false, components).ConfigureAwait(false);
 
         await _botServices.LogToChannel(LogType.CaptchaFailed, $"{Context.User.Mention} FAILED CAPTCHA").ConfigureAwait(false);
     }
@@ -139,21 +205,112 @@ public partial class LaciWizardModule : InteractionModuleBase
         var account = await db.LodeStoneAuth.Include(u => u.User).FirstOrDefaultAsync(u => u.DiscordId == Context.User.Id && u.StartedAt == null).ConfigureAwait(false);
         bool hasAccount = account != null;
 
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
         if (init)
         {
             bool isBanned = await db.BannedRegistrations.AnyAsync(u => u.DiscordIdOrLodestoneAuth == Context.User.Id.ToString()).ConfigureAwait(false);
 
             if (isBanned)
             {
-                EmbedBuilder ebBanned = new();
-                ebBanned.WithTitle("You are not welcome here");
-                ebBanned.WithDescription("Your Discord account is banned");
-                await RespondAsync(embed: ebBanned.Build(), ephemeral: true).ConfigureAwait(false);
+                var bannedComponents = new ComponentBuilderV2()
+                    .WithContainer(
+                        new ContainerBuilder()
+                            .WithAccentColor(Color.Red)
+                            .WithTextDisplay($"# {serverName} Self-Service")
+                            .WithTextDisplay("## Account Banned")
+                            .WithTextDisplay("Your access to this service has been revoked.")
+                    );
+
+                await RespondAsync(components: bannedComponents.Build(), ephemeral: true).ConfigureAwait(false);
                 return;
             }
         }
 
-        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+        var components = new ComponentBuilderV2();
+        var container = new ContainerBuilder()
+            .WithTextDisplay($"# {serverName} Self-Service")
+            .WithTextDisplay("You are permitted to perform these actions:")
+            .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false);
+
+        var USE_SELECT_MENUS = true;
+
+        var permittedActions = "";
+
+        List<ActionRowBuilder> actionRows = new();
+
+        var actionRow = new ActionRowBuilder();
+        var selectMenu = new SelectMenuBuilder("wizard:menu-picker", placeholder: "Select an action");
+        actionRow.AddComponent(selectMenu);
+
+        void AddAction(string title, string wizardId, string description, IEmote emote, ButtonStyle buttonStyle = ButtonStyle.Secondary)
+        {
+            if (USE_SELECT_MENUS)
+            {
+                permittedActions = "-# Not Empty";
+                selectMenu.AddOption(title, wizardId, description, emote);
+            }
+            else
+            {
+                permittedActions += Environment.NewLine
+                + $"### {emote} {title}"
+                + Environment.NewLine
+                + description;
+
+                if (actionRows.Count > 0 && actionRows[^1] != null && actionRows[^1].ComponentCount() < 5)
+                {
+                    _logger.LogInformation("Using existing action row");
+                    actionRows[^1].AddComponent(new ButtonBuilder(title, wizardId, buttonStyle, emote: emote));
+                }
+                else
+                {
+                    _logger.LogInformation("Created new action row");
+                    var newActionRow = new ActionRowBuilder();
+                    newActionRow.AddComponent(new ButtonBuilder(title, wizardId, buttonStyle, emote: emote));
+                    actionRows.Add(newActionRow);
+                }
+            }
+        }
+
+        if (!hasAccount)
+        {
+
+            AddAction("Register", "wizard-register-verify-check:OK", "Register a new service account", Emoji.Parse("🌒"));
+        }
+        else
+        {
+            AddAction("User Info", "wizard-userinfo", "Check your service account status", Emoji.Parse("ℹ️"));
+            AddAction("Recover", "wizard-recover", "Recover your secret key", Emoji.Parse("🏥"));
+            AddAction("Secondary UID", "wizard-secondary", "Create a secondary UID", Emoji.Parse("2️⃣"));
+            AddAction("Vanity ID", "wizard-vanity", "Set a Vanity UID", Emoji.Parse("💅"));
+            if (account.User.IsAdmin)
+            {
+                AddAction("Block Mod", "wizard-blockmod", "Add a mod to be blocked from being shared", Emoji.Parse("🚫"));
+            }
+            AddAction("Delete", "wizard-delete", "Delete your secondary UIDs or service account", Emoji.Parse("⚠️"), ButtonStyle.Danger);
+        }
+
+
+        if (USE_SELECT_MENUS == false)
+        {
+            container.WithTextDisplay(permittedActions);
+
+            container.WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true);
+
+            for (var actionRowIndex = 0; actionRowIndex < actionRows.Count; actionRowIndex++)
+            {
+                container.WithActionRow(actionRows[actionRowIndex]);
+            }
+        }
+        else
+        {
+            container.WithActionRow(actionRow);
+        }
+
+        components.WithContainer(container);
+
+        await InitOrUpdateInteractionV2(init, components).ConfigureAwait(false);
+        return;
 
         EmbedBuilder eb = new();
         eb.WithTitle($"Welcome to the {serverName} Service Bot for this server");
@@ -189,6 +346,37 @@ public partial class LaciWizardModule : InteractionModuleBase
         await InitOrUpdateInteraction(init, eb, cb).ConfigureAwait(false);
     }
 
+    [ComponentInteraction("wizard:menu-picker")]
+    public async Task MenuPicker(string wizardId)
+    {
+        switch (wizardId)
+        {
+            case "wizard-register-verify-check:OK":
+                await ComponentRegister().ConfigureAwait(false);
+                break;
+            case "wizard-userinfo":
+                await ComponentUserInfo().ConfigureAwait(false);
+                break;
+            case "wizard-recover":
+                await ComponentRecover().ConfigureAwait(false);
+                break;
+            case "wizard-secondary":
+                await ComponentSecondary().ConfigureAwait(false);
+                break;
+            case "wizard-vanity":
+                await ComponentVanity().ConfigureAwait(false);
+                break;
+            case "wizard-blockmod":
+                await ComponentBlockMod().ConfigureAwait(false);
+                break;
+            case "wizard-delete":
+                await ComponentDelete().ConfigureAwait(false);
+                break;
+            default:
+                // TODO Show unexpected wizard module
+                break;
+        }
+    }
     public class VanityUidModal : IModal
     {
         public string Title => "Set Vanity UID";
@@ -249,13 +437,21 @@ public partial class LaciWizardModule : InteractionModuleBase
             return true;
         }
 
-        EmbedBuilder eb = new();
-        eb.WithTitle("Session expired");
-        eb.WithDescription("This session has expired since you have either again pressed \"Start\" on the initial message or the bot has been restarted." + Environment.NewLine + Environment.NewLine
-            + "Please use the newly started interaction or start a new one.");
-        eb.WithColor(Color.Red);
-        ComponentBuilder cb = new();
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(
+                new ContainerBuilder()
+                    .WithAccentColor(Color.Red)
+                    .WithTextDisplay($"# {serverName} Self-Service")
+                    .WithTextDisplay("## Session expired")
+                    .WithTextDisplay("This session has expired since you have either again pressed **➡️ Start** on the initial message or the self-service has been restarted."
+                        + Environment.NewLine
+                        + Environment.NewLine
+                        + "Please use the newly started self-service or start a new one.")
+            );
+
+        await InitOrUpdateInteractionV2(init: false, components).ConfigureAwait(false);
 
         return false;
     }
@@ -263,6 +459,11 @@ public partial class LaciWizardModule : InteractionModuleBase
     private void AddHome(ComponentBuilder cb)
     {
         cb.WithButton("Return to Home", "wizard-home:false", ButtonStyle.Secondary, new Emoji("🏠"));
+    }
+
+    private void AddHomeV2(ActionRowBuilder actionRow)
+    {
+        actionRow.AddComponent(new ButtonBuilder("Return to Home", "wizard-home:false", ButtonStyle.Secondary, emote: Emoji.Parse("🏠")));
     }
 
     private async Task ModifyModalInteraction(EmbedBuilder eb, ComponentBuilder cb)
@@ -281,6 +482,16 @@ public partial class LaciWizardModule : InteractionModuleBase
             m.Content = null;
             m.Embed = eb.Build();
             m.Components = cb.Build();
+        }).ConfigureAwait(false);
+    }
+
+    private async Task ModifyInteractionV2(ComponentBuilderV2 components)
+    {
+        await ((Context.Interaction) as IComponentInteraction).UpdateAsync(m =>
+        {
+            m.Content = null;
+            m.Embed = null;
+            m.Components = components.Build();
         }).ConfigureAwait(false);
     }
 
@@ -303,6 +514,28 @@ public partial class LaciWizardModule : InteractionModuleBase
                     entry.PrimaryUserUID == null ? new Emoji("1️⃣") : new Emoji("2️⃣"));
             }
             cb.WithSelectMenu(sb);
+        }
+    }
+
+    private async Task AddUserSelectionV2(LaciDbContext db, ActionRowBuilder actionRow, string customId)
+    {
+        var discordId = Context.User.Id;
+        var existingAuth = await db.LodeStoneAuth.Include(u => u.User).SingleOrDefaultAsync(e => e.DiscordId == discordId).ConfigureAwait(false);
+        if (existingAuth != null)
+        {
+            SelectMenuBuilder sb = new();
+            sb.WithPlaceholder("Select a UID");
+            sb.WithCustomId(customId);
+            var existingUids = await db.Auth.Include(u => u.User).Where(u => u.UserUID == existingAuth.User.UID || u.PrimaryUserUID == existingAuth.User.UID)
+                .OrderByDescending(u => u.PrimaryUser == null).ToListAsync().ConfigureAwait(false);
+            foreach (var entry in existingUids)
+            {
+                sb.AddOption(string.IsNullOrEmpty(entry.User.Alias) ? entry.UserUID : entry.User.Alias,
+                    entry.UserUID,
+                    !string.IsNullOrEmpty(entry.User.Alias) ? entry.User.UID : null,
+                    entry.PrimaryUserUID == null ? new Emoji("1️⃣") : new Emoji("2️⃣"));
+            }
+            actionRow.WithSelectMenu(sb);
         }
     }
 
