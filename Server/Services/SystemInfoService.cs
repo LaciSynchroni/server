@@ -59,7 +59,7 @@ public sealed class SystemInfoService : BackgroundService
 
                 if (_config.IsMain)
                 {
-                    _logger.LogInformation("Sending System Info, Online Users: {onlineUsers}", onlineUsers);
+                    _logger.LogTrace("Sending System Info, Online Users: {onlineUsers}", onlineUsers);
 
                     await _hubContext.Clients.All.Client_UpdateSystemInfo(SystemInfoDto).ConfigureAwait(false);
 

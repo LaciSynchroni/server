@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Common.Data;
-using LaciSynchroni.Common.Data.Enum;
 using LaciSynchroni.Common.Dto;
 using LaciSynchroni.Common.SignalR;
 using LaciSynchroni.Server.Services;
@@ -29,7 +28,6 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
     private readonly int _maxExistingGroupsByUser;
     private readonly int _maxJoinedGroupsByUser;
     private readonly int _maxGroupUserCount;
-    private readonly string _serverName;
     private readonly IRedisDatabase _redis;
     private readonly OnlineSyncedPairCacheService _onlineSyncedPairCacheService;
     private readonly LaciCensus _census;
@@ -37,31 +35,32 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
     private readonly Uri _fileServerAddress;
     private readonly Version _expectedClientVersion;
     private readonly Lazy<LaciDbContext> _dbContextLazy;
+    private readonly MessagingService _messagingService;
     private LaciDbContext DbContext => _dbContextLazy.Value;
     private readonly int _maxCharaDataByUser;
     private readonly int _maxCharaDataByUserVanity;
 
     public ServerHub(LaciMetrics metrics,
         IDbContextFactory<LaciDbContext> dbContextFactory, ILogger<ServerHub> logger, SystemInfoService systemInfoService,
-        IConfigurationService<ServerConfiguration> configuration,
+        IConfigurationService<ServerConfiguration> serverConfig,
         IRedisDatabase redisDb, OnlineSyncedPairCacheService onlineSyncedPairCacheService, LaciCensus census,
-        GPoseLobbyDistributionService gPoseLobbyDistributionService)
+        GPoseLobbyDistributionService gPoseLobbyDistributionService, MessagingService messagingService)
     {
         _metrics = metrics;
         _systemInfoService = systemInfoService;
-        _shardName = configuration.GetValue<string>(nameof(ServerConfiguration.ShardName));
-        _maxExistingGroupsByUser = configuration.GetValueOrDefault(nameof(ServerConfiguration.MaxExistingGroupsByUser), 3);
-        _maxJoinedGroupsByUser = configuration.GetValueOrDefault(nameof(ServerConfiguration.MaxJoinedGroupsByUser), 6);
-        _maxGroupUserCount = configuration.GetValueOrDefault(nameof(ServerConfiguration.MaxGroupUserCount), 100);
-        _fileServerAddress = configuration.GetValue<Uri>(nameof(ServerConfiguration.CdnFullUrl));
-        _expectedClientVersion = configuration.GetValueOrDefault(nameof(ServerConfiguration.ExpectedClientVersion), new Version(0, 0, 0));
-        _maxCharaDataByUser = configuration.GetValueOrDefault(nameof(ServerConfiguration.MaxCharaDataByUser), 10);
-        _maxCharaDataByUserVanity = configuration.GetValueOrDefault(nameof(ServerConfiguration.MaxCharaDataByUserVanity), 50);
-        _serverName = configuration.GetValueOrDefault(nameof(ServerConfiguration.ServerName), "Laci Synchroni");
+        _shardName = serverConfig.GetValue<string>(nameof(ServerConfiguration.ShardName));
+        _maxExistingGroupsByUser = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.MaxExistingGroupsByUser), 3);
+        _maxJoinedGroupsByUser = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.MaxJoinedGroupsByUser), 6);
+        _maxGroupUserCount = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.MaxGroupUserCount), 100);
+        _fileServerAddress = serverConfig.GetValue<Uri>(nameof(ServerConfiguration.CdnFullUrl));
+        _expectedClientVersion = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.ExpectedClientVersion), new Version(0, 0, 0));
+        _maxCharaDataByUser = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.MaxCharaDataByUser), 10);
+        _maxCharaDataByUserVanity = serverConfig.GetValueOrDefault(nameof(ServerConfiguration.MaxCharaDataByUserVanity), 50);
         _redis = redisDb;
         _onlineSyncedPairCacheService = onlineSyncedPairCacheService;
         _census = census;
         _gPoseLobbyDistributionService = gPoseLobbyDistributionService;
+        _messagingService = messagingService;
         _logger = new ServerHubLogger(this, logger);
         _dbContextLazy = new Lazy<LaciDbContext>(() => dbContextFactory.CreateDbContext());
     }
@@ -88,7 +87,7 @@ public partial class ServerHub : Hub<IServerHub>, IServerHub
         var dbUser = await DbContext.Users.SingleAsync(f => f.UID == UserUID).ConfigureAwait(false);
         dbUser.LastLoggedIn = DateTime.UtcNow;
 
-        await Clients.Caller.Client_ReceiveServerMessage(MessageSeverity.Information, $"Welcome to {_serverName} \"{_shardName}\", Current Online Users: {_systemInfoService.SystemInfoDto.OnlineUsers}").ConfigureAwait(false);
+        await _messagingService.SendMessageOfTheDay(Clients.Caller).ConfigureAwait(false);
 
         var defaultPermissions = await DbContext.UserDefaultPreferredPermissions.SingleOrDefaultAsync(u => u.UserUID == UserUID).ConfigureAwait(false);
         if (defaultPermissions == null)

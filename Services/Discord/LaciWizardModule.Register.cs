@@ -5,6 +5,11 @@ using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Utils;
 using LaciSynchroni.Shared.Utils.Configuration;
+using LaciSynchroni.Common.Dto.Server;
+using LaciSynchroni.Common.SignalR;
+using MessagePack;
+using System.Text.Json;
+using LaciSynchroni.Common.Data;
 using LaciSynchroni.Shared.Utils.Configuration.Services;
 
 namespace LaciSynchroni.Services.Discord;
@@ -143,18 +148,23 @@ public partial class LaciWizardModule
         eb.WithColor(Color.Green);
         using var db = await GetDbContext().ConfigureAwait(false);
         var (uid, key) = await HandleAddUser(db).ConfigureAwait(false);
+
         eb.WithTitle($"Registration successful, your UID: {uid}");
-        eb.WithDescription("This is your private secret key. Do not share this private secret key with anyone. **If you lose it, it is irrevocably lost.**"
+        eb.WithDescription("Click this link to quickly open up the Laci onboarding UI and connect to this service."
                                      + Environment.NewLine + Environment.NewLine
-                                     + "**__NOTE: Secret keys are considered legacy. Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**"
+                                     + $"{PluginHttpServerData.Hostname}:{PluginHttpServerData.Port}/laci/join?uri={Uri.EscapeDataString(_serverConfig.GetValue<Uri>(nameof(ServerConfiguration.ServerPublicUri)).ToString())}&secretkey={key}"
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "Already connected to the server? Use the secret key below. **If you lose it, you will have to recover your account through this bot.**"
                                      + Environment.NewLine + Environment.NewLine
                                      + $"||**`{key}`**||"
                                      + Environment.NewLine + Environment.NewLine
-                                     + "If you want to continue using legacy authentication, enter this key in Laci Synchroni and hit save to connect to the service."
-                                     + Environment.NewLine
+                                     + "**__Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**"
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "If you want to continue using secret key authentication, enter this key in Laci Synchroni or click on the link above and hit save to connect to the service."
+                                     + Environment.NewLine + Environment.NewLine
                                      + "__NOTE: The Secret Key only contains the letters ABCDEF and numbers 0 - 9.__"
-                                     + Environment.NewLine
-                                     + "You should connect as soon as possible to not get caught by the automatic cleanup process."
+                                     + Environment.NewLine + Environment.NewLine
+                                     + "**DO NOT SHARE ANY OF THIS INFO WITH ANYONE OR YOUR ACCOUNT MAY BE COMPROMISED.**"
                                      + Environment.NewLine
                                      + "Have fun.");
         AddHome(cb);
@@ -196,6 +206,7 @@ public partial class LaciWizardModule
         }
 
         string lodestoneAuth = await GenerateLodestoneAuth(Context.User.Id, hashedLodestoneId, db).ConfigureAwait(false);
+
         // check if lodestone id is already in db
         embed.WithTitle("Authorize your character");
         embed.WithDescription("Add following key to your character profile at https://na.finalfantasyxiv.com/lodestone/my/setting/profile/"
