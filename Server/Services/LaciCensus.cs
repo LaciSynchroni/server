@@ -3,10 +3,11 @@ using Microsoft.VisualBasic.FileIO;
 using Prometheus;
 using System.Collections.Concurrent;
 using System.Globalization;
+using LaciSynchroni.Shared.Utils.Configuration;
 
 namespace LaciSynchroni.Server.Services;
 
-public class LaciCensus : IHostedService
+public class LaciCensus(ILogger<LaciCensus> logger, IConfigurationSection configuration) : IHostedService
 {
     private record CensusEntry(ushort WorldId, short Race, short Subrace, short Gender)
     {
@@ -19,16 +20,10 @@ public class LaciCensus : IHostedService
     private readonly ConcurrentDictionary<string, CensusEntry> _censusEntries = new(StringComparer.Ordinal);
     private readonly Dictionary<short, string> _dcs = new();
     private readonly Dictionary<short, string> _gender = new();
-    private readonly ILogger<LaciCensus> _logger;
     private readonly Dictionary<short, string> _races = new();
     private readonly Dictionary<short, string> _tribes = new();
     private readonly Dictionary<ushort, (string, short)> _worlds = new();
     private Gauge? _gauge;
-
-    public LaciCensus(ILogger<LaciCensus> logger)
-    {
-        _logger = logger;
-    }
 
     private bool Initialized => _gauge != null;
 
@@ -66,14 +61,32 @@ public class LaciCensus : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Loading XIVAPI data");
+        if (configuration.GetValue(nameof(ServerConfiguration.CensusDisabled), defaultValue: true))
+        {
+            logger.LogInformation("Census is disabled.");
+            return;
+        }
+        try
+        {
+            logger.LogInformation("Loading XIVAPI data");
+            await LoadDataAndInitialize(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to load data from XIVAPI.");
+        }
 
+    }
+
+    private async Task LoadDataAndInitialize(CancellationToken cancellationToken)
+    {
+        
         using HttpClient client = new HttpClient();
 
         Dictionary<ushort, short> worldDcs = new();
 
-        var dcs = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/WorldDCGroupType.csv", cancellationToken).ConfigureAwait(false);
-        // dc: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/WorldDCGroupType.csv
+        var dcs = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/WorldDCGroupType.csv", cancellationToken).ConfigureAwait(false);
+        // dc: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/WorldDCGroupType.csv
         // id, name, region
 
         using var dcsReader = new StringReader(dcs);
@@ -88,12 +101,12 @@ public class LaciCensus : IHostedService
             var id = short.Parse(fields[0], CultureInfo.InvariantCulture);
             var name = fields[1];
             if (string.IsNullOrEmpty(name) || id == 0) continue;
-            _logger.LogInformation("DC: ID: {id}, Name: {name}", id, name);
+            logger.LogInformation("DC: ID: {id}, Name: {name}", id, name);
             _dcs[id] = name;
         }
 
-        var worlds = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/World.csv", cancellationToken).ConfigureAwait(false);
-        // world: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/World.csv
+        var worlds = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/World.csv", cancellationToken).ConfigureAwait(false);
+        // world: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/World.csv
         // id, internalname, name, region, usertype, datacenter, ispublic
 
         using var worldsReader = new StringReader(worlds);
@@ -111,11 +124,11 @@ public class LaciCensus : IHostedService
             var isPublic = bool.Parse(fields[6]);
             if (!_dcs.ContainsKey(dc) || !isPublic) continue;
             _worlds[id] = (name, dc);
-            _logger.LogInformation("World: ID: {id}, Name: {name}, DC: {dc}", id, name, dc);
+            logger.LogInformation("World: ID: {id}, Name: {name}, DC: {dc}", id, name, dc);
         }
 
-        var races = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/Race.csv", cancellationToken).ConfigureAwait(false);
-        // race: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/Race.csv
+        var races = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/Race.csv", cancellationToken).ConfigureAwait(false);
+        // race: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/Race.csv
         // id, masc name, fem name, other crap I don't care about
 
         using var raceReader = new StringReader(races);
@@ -131,11 +144,11 @@ public class LaciCensus : IHostedService
             var name = fields[1];
             if (string.IsNullOrEmpty(name) || id == 0) continue;
             _races[id] = name;
-            _logger.LogInformation("Race: ID: {id}, Name: {name}", id, name);
+            logger.LogInformation("Race: ID: {id}, Name: {name}", id, name);
         }
 
-        var tribe = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/Tribe.csv", cancellationToken).ConfigureAwait(false);
-        // tribe: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/Tribe.csv
+        var tribe = await client.GetStringAsync("https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/Tribe.csv", cancellationToken).ConfigureAwait(false);
+        // tribe: https://raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/Tribe.csv
         // id masc name, fem name, other crap I don't care about
 
         using var tribeReader = new StringReader(tribe);
@@ -151,7 +164,7 @@ public class LaciCensus : IHostedService
             var name = fields[1];
             if (string.IsNullOrEmpty(name) || id == 0) continue;
             _tribes[id] = name;
-            _logger.LogInformation("Tribe: ID: {id}, Name: {name}", id, name);
+            logger.LogInformation("Tribe: ID: {id}, Name: {name}", id, name);
         }
 
         _gender[0] = "Male";

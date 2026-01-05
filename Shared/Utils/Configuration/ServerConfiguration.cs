@@ -40,6 +40,7 @@ public class ServerConfiguration : LaciConfigurationBase
     public string DiscordInvite { get; set; }
     public string ServerRules { get; set; }
     public MessageConfiguration MessageConfiguration { get; set; } = new();
+    public bool CensusDisabled = true;
 
     public override string ToString()
     {
