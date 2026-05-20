@@ -13,6 +13,7 @@ public partial class LaciWizardModule
     public async Task ComponentVanity()
     {
         if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        using var db = await GetDbContext().ConfigureAwait(false);
 
         _logger.LogInformation("{method}:{userId}", nameof(ComponentVanity), Context.Interaction.User.Id);
 
@@ -32,22 +33,27 @@ public partial class LaciWizardModule
             sb.AppendLine("Your current roles on this server allow you to set Vanity IDs.");
         }
 
-        EmbedBuilder eb = new();
-        eb.WithTitle("Vanity IDs");
-        eb.WithDescription("You are able to set your Vanity IDs here." + Environment.NewLine
-            + "Vanity IDs are a way to customize your displayed UID or Syncshell ID to others." + Environment.NewLine + Environment.NewLine
-            + sb.ToString());
-        eb.WithColor(Color.Blue);
-        ComponentBuilder cb = new();
-        AddHome(cb);
+        var container =
+            CreateResponse(Color.Blue)
+                .WithTextDisplay("## Vanity IDs")
+                .WithTextDisplay("You are able to set your Vanity IDs here." +
+                                 $"{Environment.NewLine}" +
+                                 $"Vanity IDs are a way to customize your displayed UID or Syncshell ID to others.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                .WithTextDisplay(sb.ToString())
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true);
+
         if (userIsInVanityRole)
         {
-            using var db = await GetDbContext().ConfigureAwait(false);
-            await AddUserSelection(db, cb, "wizard-vanity-uid").ConfigureAwait(false);
-            await AddGroupSelection(db, cb, "wizard-vanity-gid").ConfigureAwait(false);
+            container.WithActionRow([await MakeUserSelectionV2(db, "wizard-vanity-uid").ConfigureAwait(false)]);
+            container.WithActionRow([await MakeGroupSelectionV2(db, "wizard-vanity-gid").ConfigureAwait(false)]);
         }
 
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        container.WithActionRow([
+            MakeHomeV2(),
+        ]);
+        
+        await ModifyInteractionV2(Wrap(container)).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-vanity-uid")]
@@ -59,16 +65,32 @@ public partial class LaciWizardModule
 
         using var db = await GetDbContext().ConfigureAwait(false);
         var user = db.Users.Single(u => u.UID == uid);
-        EmbedBuilder eb = new();
-        eb.WithColor(Color.Purple);
-        eb.WithTitle($"Set Vanity UID for {uid}");
-        eb.WithDescription($"You are about to change the Vanity UID for {uid}" + Environment.NewLine + Environment.NewLine
-            + "The current Vanity UID is set to: **" + (user.Alias == null ? "No Vanity UID set" : user.Alias) + "**");
-        ComponentBuilder cb = new();
-        cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-        cb.WithButton("Set Vanity ID", "wizard-vanity-uid-set:" + uid, ButtonStyle.Primary, new Emoji("💅"));
 
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        var components = Wrap(CreateResponse()
+            .WithTextDisplay("## Vanity IDs")
+            .WithTextDisplay($"You are setting a Vanity UID for **`{uid}`**." +
+                             $"{Environment.NewLine}" +
+                             $"The current Vanity UID is set to: **`{(user.Alias == null ? "No Vanity UID set" : user.Alias)}`**")
+            .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+            .WithActionRow([
+                new ButtonBuilder
+                {
+                    Label = "Cancel",
+                    CustomId = "wizard-vanity",
+                    Emote = new Emoji("❌"),
+                    Style = ButtonStyle.Secondary,
+                },
+                new ButtonBuilder
+                {
+                    Label = "Set Vanity ID",
+                    CustomId = $"wizard-vanity-uid-set:{uid}",
+                    Emote = new Emoji("💅"),
+                    Style = ButtonStyle.Primary,
+                },
+            ])
+        );
+
+        await ModifyInteractionV2(components).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-vanity-uid-set:*")]
@@ -94,22 +116,55 @@ public partial class LaciWizardModule
         using var db = await GetDbContext().ConfigureAwait(false);
         bool canAddVanityId = !db.Users.Any(u => u.UID == modal.DesiredVanityUID || u.Alias == modal.DesiredVanityUID);
 
+        var container = CreateResponse()
+            .WithTextDisplay("## Vanity IDs");
+
         Regex rgx = new(@"^[_\-a-zA-Z0-9]{5,15}$", RegexOptions.ECMAScript);
         if (!rgx.Match(desiredVanityUid).Success)
         {
-            eb.WithColor(Color.Red);
-            eb.WithTitle("Invalid Vanity UID");
-            eb.WithDescription("A Vanity UID must be between 5 and 15 characters long and only contain the letters A-Z, numbers 0-9, dashes (-) and underscores (_).");
-            cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-            cb.WithButton("Pick Different UID", "wizard-vanity-uid-set:" + uid, ButtonStyle.Primary, new Emoji("💅"));
+            container
+                .WithTextDisplay("### Invalid Vanity UID" +
+                                 $"{Environment.NewLine}" +
+                                 $"A Vanity UID must be between 5 and 15 characters long and only contain the letters A-Z, numbers 0-9, dashes (-) and underscores (_).")
+                .WithActionRow([
+                    new ButtonBuilder
+                    {
+                        Label = "Cancel",
+                        CustomId = "wizard-vanity",
+                        Emote = new Emoji("❌"),
+                        Style = ButtonStyle.Secondary,
+                    },
+                    new ButtonBuilder
+                    {
+                        Label = "Pick Different UID",
+                        CustomId = $"wizard-vanity-uid-set:{uid}",
+                        Emote = new Emoji("💅"),
+                        Style = ButtonStyle.Primary,
+                    },
+                ]);
         }
         else if (!canAddVanityId)
         {
-            eb.WithColor(Color.Red);
-            eb.WithTitle("Vanity UID already taken");
-            eb.WithDescription($"The Vanity UID {desiredVanityUid} has already been claimed. Please pick a different one.");
-            cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-            cb.WithButton("Pick Different UID", "wizard-vanity-uid-set:" + uid, ButtonStyle.Primary, new Emoji("💅"));
+            container
+                .WithTextDisplay("### Vanity UID already taken" +
+                                 $"{Environment.NewLine}" +
+                                 $"The Vanity UID {desiredVanityUid} has already been claimed. Please pick a different one.")
+                .WithActionRow([
+                    new ButtonBuilder
+                    {
+                        Label = "Cancel",
+                        CustomId = "wizard-vanity",
+                        Emote = new Emoji("❌"),
+                        Style = ButtonStyle.Secondary,
+                    },
+                    new ButtonBuilder
+                    {
+                        Label = "Pick Different UID",
+                        CustomId = $"wizard-vanity-uid-set:{uid}",
+                        Emote = new Emoji("💅"),
+                        Style = ButtonStyle.Primary,
+                    },
+                ]);
         }
         else
         {
@@ -117,15 +172,19 @@ public partial class LaciWizardModule
             user.Alias = desiredVanityUid;
             db.Update(user);
             await db.SaveChangesAsync().ConfigureAwait(false);
-            eb.WithColor(Color.Green);
-            eb.WithTitle("Vanity UID successfully set");
-            eb.WithDescription($"Your Vanity UID for \"{uid}\" was successfully changed to \"{desiredVanityUid}\"." + Environment.NewLine + Environment.NewLine
-                + "For changes to take effect you need to reconnect to the Laci service.");
+            container
+                .WithTextDisplay("### Vanity UID successfully set" +
+                                 $"{Environment.NewLine}" +
+                                 $"Your Vanity UID for **`{uid}`** was successfully changed to **`{desiredVanityUid}`**." +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"For changes to take effect, you need to reconnect to the Laci service.")
+                .WithActionRow([
+                    MakeHomeV2(),
+                ]);
             await _botServices.LogToChannel(LogType.VanitySet, $"{Context.User.Mention} VANITY UID SET: UID: {user.UID}, Vanity: {desiredVanityUid}").ConfigureAwait(false);
-            AddHome(cb);
         }
 
-        await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
+        await ModifyModalInteractionV2(Wrap(container)).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-vanity-gid")]
@@ -135,16 +194,32 @@ public partial class LaciWizardModule
 
         using var db = await GetDbContext().ConfigureAwait(false);
         var group = db.Groups.Single(u => u.GID == gid);
-        EmbedBuilder eb = new();
-        eb.WithColor(Color.Purple);
-        eb.WithTitle($"Set Vanity GID for {gid}");
-        eb.WithDescription($"You are about to change the Vanity Syncshell ID for {gid}" + Environment.NewLine + Environment.NewLine
-            + "The current Vanity Syncshell ID is set to: **" + (group.Alias == null ? "No Vanity Syncshell ID set" : group.Alias) + "**");
-        ComponentBuilder cb = new();
-        cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-        cb.WithButton("Set Vanity ID", "wizard-vanity-gid-set:" + gid, ButtonStyle.Primary, new Emoji("💅"));
+        
+        var components = Wrap(CreateResponse()
+            .WithTextDisplay("## Vanity IDs")
+            .WithTextDisplay($"You are setting a Vanity GID for **`{gid}`**." +
+                             $"{Environment.NewLine}" +
+                             $"The current Vanity GID is set to: **`{(group.Alias == null ? "No Vanity UID set" : group.Alias)}`**")
+            .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+            .WithActionRow([
+                new ButtonBuilder
+                {
+                    Label = "Cancel",
+                    CustomId = "wizard-vanity",
+                    Emote = new Emoji("❌"),
+                    Style = ButtonStyle.Secondary,
+                },
+                new ButtonBuilder
+                {
+                    Label = "Set Vanity ID",
+                    CustomId = $"wizard-vanity-gid-set:{gid}",
+                    Emote = new Emoji("💅"),
+                    Style = ButtonStyle.Primary,
+                },
+            ])
+        );
 
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        await ModifyInteractionV2(components).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-vanity-gid-set:*")]
@@ -169,23 +244,56 @@ public partial class LaciWizardModule
         var desiredVanityGid = modal.DesiredVanityGID;
         using var db = await GetDbContext().ConfigureAwait(false);
         bool canAddVanityId = !db.Groups.Any(u => u.GID == modal.DesiredVanityGID || u.Alias == modal.DesiredVanityGID);
+        
+        var container = CreateResponse()
+            .WithTextDisplay("## Vanity IDs");
 
         Regex rgx = new(@"^[_\-a-zA-Z0-9]{5,20}$", RegexOptions.ECMAScript);
         if (!rgx.Match(desiredVanityGid).Success)
         {
-            eb.WithColor(Color.Red);
-            eb.WithTitle("Invalid Vanity Syncshell ID");
-            eb.WithDescription("A Vanity Syncshell ID must be between 5 and 20 characters long and only contain the letters A-Z, numbers 0-9, dashes (-) and underscores (_).");
-            cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-            cb.WithButton("Pick Different ID", "wizard-vanity-gid-set:" + gid, ButtonStyle.Primary, new Emoji("💅"));
+            container
+                .WithTextDisplay("### Invalid Vanity Syncshell ID" +
+                                 $"{Environment.NewLine}" +
+                                 $"A Vanity Syncshell ID must be between 5 and 15 characters long and only contain the letters A-Z, numbers 0-9, dashes (-) and underscores (_).")
+                .WithActionRow([
+                    new ButtonBuilder
+                    {
+                        Label = "Cancel",
+                        CustomId = "wizard-vanity",
+                        Emote = new Emoji("❌"),
+                        Style = ButtonStyle.Secondary,
+                    },
+                    new ButtonBuilder
+                    {
+                        Label = "Pick Different UID",
+                        CustomId = $"wizard-vanity-gid-set:{gid}",
+                        Emote = new Emoji("💅"),
+                        Style = ButtonStyle.Primary,
+                    },
+                ]);
         }
         else if (!canAddVanityId)
         {
-            eb.WithColor(Color.Red);
-            eb.WithTitle("Vanity Syncshell ID already taken");
-            eb.WithDescription($"The Vanity Synshell ID \"{desiredVanityGid}\" has already been claimed. Please pick a different one.");
-            cb.WithButton("Cancel", "wizard-vanity", ButtonStyle.Secondary, emote: new Emoji("❌"));
-            cb.WithButton("Pick Different ID", "wizard-vanity-gid-set:" + gid, ButtonStyle.Primary, new Emoji("💅"));
+            container
+                .WithTextDisplay("### Vanity Syncshell ID already taken" +
+                                 $"{Environment.NewLine}" +
+                                 $"The Vanity Syncshell ID {desiredVanityGid} has already been claimed. Please pick a different one.")
+                .WithActionRow([
+                    new ButtonBuilder
+                    {
+                        Label = "Cancel",
+                        CustomId = "wizard-vanity",
+                        Emote = new Emoji("❌"),
+                        Style = ButtonStyle.Secondary,
+                    },
+                    new ButtonBuilder
+                    {
+                        Label = "Pick Different UID",
+                        CustomId = $"wizard-vanity-gid-set:{gid}",
+                        Emote = new Emoji("💅"),
+                        Style = ButtonStyle.Primary,
+                    },
+                ]);
         }
         else
         {
@@ -193,14 +301,18 @@ public partial class LaciWizardModule
             group.Alias = desiredVanityGid;
             db.Update(group);
             await db.SaveChangesAsync().ConfigureAwait(false);
-            eb.WithColor(Color.Green);
-            eb.WithTitle("Vanity Syncshell ID successfully set");
-            eb.WithDescription($"Your Vanity Syncshell ID for {gid} was successfully changed to \"{desiredVanityGid}\"." + Environment.NewLine + Environment.NewLine
-                + "For changes to take effect you need to reconnect to the Laci service.");
-            AddHome(cb);
+            container
+                .WithTextDisplay("### Vanity Syncshell ID successfully set" +
+                                 $"{Environment.NewLine}" +
+                                 $"Your Vanity Syncshell ID for **`{gid}`** was successfully changed to **`{desiredVanityGid}`**." +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"For changes to take effect, you need to reconnect to the Laci service.")
+                .WithActionRow([
+                    MakeHomeV2(),
+                ]);
             await _botServices.LogToChannel(LogType.VanitySet, $"{Context.User.Mention} VANITY GID SET: GID: {group.GID}, Vanity: {desiredVanityGid}").ConfigureAwait(false);
         }
 
-        await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
+        await ModifyModalInteractionV2(Wrap(container)).ConfigureAwait(false);
     }
 }

@@ -22,15 +22,25 @@ public partial class LaciWizardModule
         using var db = await GetDbContext().ConfigureAwait(false);
         var user = await db.LodeStoneAuth.Include(u => u.User).SingleAsync(u => u.DiscordId == Context.User.Id).ConfigureAwait(false);
         var primaryUID = user.User.UID;
+        
+        var components = Wrap(CreateResponse(Color.Blue)
+            .WithTextDisplay("## Block Mod")
+            .WithTextDisplay(
+                $"You can prevent specific mods from being synced using this dialog.")
+            .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+            .WithActionRow([
+                new ButtonBuilder
+                {
+                    Label = "Block Mod",
+                    CustomId = $"wizard-blockmod-confirm:{primaryUID}",
+                    Emote = new Emoji("🚫"),
+                    Style = ButtonStyle.Primary,
+                },
+                MakeHomeV2(),
+            ])
+        );
 
-        EmbedBuilder eb = new();
-        eb.WithColor(Color.Blue);
-        eb.WithTitle("Block mod");
-        eb.WithDescription("You can prevent specific mods from being synced using this dialog.");
-        ComponentBuilder cb = new();
-        AddHome(cb);
-        cb.WithButton("Block mod", "wizard-blockmod-confirm:" + primaryUID, ButtonStyle.Primary, emote: new Emoji("🚫"));
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        await ModifyInteractionV2(components).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-blockmod-confirm:*")]
@@ -62,17 +72,20 @@ public partial class LaciWizardModule
 
             using var db = await GetDbContext().ConfigureAwait(false);
             await db.ForbiddenUploadEntries.AddAsync(modBlockInfo).ConfigureAwait(false);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            
+            var components = Wrap(CreateResponse(Color.Green)
+                .WithTextDisplay("## Block Mod")
+                .WithTextDisplay(
+                    $"Mod {modal.ModHash} was successfully banned.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                .WithActionRow([
+                    MakeHomeV2(),
+                ])
+            );
 
-            EmbedBuilder eb = new();
-            eb.WithTitle($"Mod {modal.ModHash} successfully banned");
-            eb.WithColor(Color.Green);
-            ComponentBuilder cb = new();
-            AddHome(cb);
-
-            await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
-
-
+            await ModifyModalInteractionV2(components).ConfigureAwait(false);
+            
             await _botServices.LogToChannel(LogType.ModeratorAction, $"{Context.User.Mention} MOD BLOCK SUCCESS: {modal.ModHash}").ConfigureAwait(false);
         }
         catch (Exception ex)

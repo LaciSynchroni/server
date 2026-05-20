@@ -466,6 +466,28 @@ public partial class LaciWizardModule : InteractionModuleBase
         actionRow.AddComponent(new ButtonBuilder("Return to Home", "wizard-home:false", ButtonStyle.Secondary, emote: Emoji.Parse("🏠")));
     }
 
+    private static ButtonBuilder MakeHomeV2()
+    {
+        return new ButtonBuilder("Return to Home", "wizard-home:false", ButtonStyle.Secondary,
+            emote: Emoji.Parse("🏠"));
+    }
+
+    private ContainerBuilder CreateResponse(Color? color = null)
+    {
+        var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+
+        return new ContainerBuilder()
+            .WithAccentColor(color)
+            .WithTextDisplay($"# {serverName} Self-Service");
+    }
+
+    private ComponentBuilderV2 Wrap(ContainerBuilder container)
+    {
+        return new ComponentBuilderV2()
+            .WithContainer(container);
+    }
+
+    [Obsolete("Use ModifyModalInteractionV2 instead")]
     private async Task ModifyModalInteraction(EmbedBuilder eb, ComponentBuilder cb)
     {
         await (Context.Interaction as SocketModal).UpdateAsync(m =>
@@ -474,7 +496,18 @@ public partial class LaciWizardModule : InteractionModuleBase
             m.Components = cb.Build();
         }).ConfigureAwait(false);
     }
+    
+    private async Task ModifyModalInteractionV2(ComponentBuilderV2 components)
+    {
+        await (Context.Interaction as SocketModal).UpdateAsync(m =>
+        {
+            m.Content = null;
+            m.Embed = null;
+            m.Components = components.Build();
+        }).ConfigureAwait(false);
+    }
 
+    [Obsolete("Use ModifyInteractionV2 instead")]
     private async Task ModifyInteraction(EmbedBuilder eb, ComponentBuilder cb)
     {
         await ((Context.Interaction) as IComponentInteraction).UpdateAsync(m =>
@@ -494,7 +527,8 @@ public partial class LaciWizardModule : InteractionModuleBase
             m.Components = components.Build();
         }).ConfigureAwait(false);
     }
-
+    
+    [Obsolete("Use MakeUserSelectionV2 instead")]
     private async Task AddUserSelection(LaciDbContext db, ComponentBuilder cb, string customId)
     {
         var discordId = Context.User.Id;
@@ -517,6 +551,7 @@ public partial class LaciWizardModule : InteractionModuleBase
         }
     }
 
+    [Obsolete("Use MakeUserSelectionV2 instead")]
     private async Task AddUserSelectionV2(LaciDbContext db, ActionRowBuilder actionRow, string customId)
     {
         var discordId = Context.User.Id;
@@ -538,7 +573,33 @@ public partial class LaciWizardModule : InteractionModuleBase
             actionRow.WithSelectMenu(sb);
         }
     }
+    
+    private async Task<SelectMenuBuilder> MakeUserSelectionV2(LaciDbContext db, string customId)
+    {
+        var discordId = Context.User.Id;
+        var existingAuth = await db.LodeStoneAuth.Include(u => u.User).SingleOrDefaultAsync(e => e.DiscordId == discordId).ConfigureAwait(false);
+        
+        SelectMenuBuilder sb = new();
+        sb.WithPlaceholder("Select a UID");
+        sb.WithCustomId(customId);
+        
+        if (existingAuth != null)
+        {
+            var existingUids = await db.Auth.Include(u => u.User).Where(u => u.UserUID == existingAuth.User.UID || u.PrimaryUserUID == existingAuth.User.UID)
+                .OrderByDescending(u => u.PrimaryUser == null).ToListAsync().ConfigureAwait(false);
+            foreach (var entry in existingUids)
+            {
+                sb.AddOption(string.IsNullOrEmpty(entry.User.Alias) ? entry.UserUID : entry.User.Alias,
+                    entry.UserUID,
+                    !string.IsNullOrEmpty(entry.User.Alias) ? entry.User.UID : null,
+                    entry.PrimaryUserUID == null ? new Emoji("1️⃣") : new Emoji("2️⃣"));
+            }
+        }
+        
+        return sb;
+    }
 
+    [Obsolete("Use MakeGroupSelectionV2 instead")]
     private async Task AddGroupSelection(LaciDbContext db, ComponentBuilder cb, string customId)
     {
         var primary = (await db.LodeStoneAuth.Include(u => u.User).SingleAsync(u => u.DiscordId == Context.User.Id).ConfigureAwait(false)).User;
@@ -560,6 +621,30 @@ public partial class LaciWizardModule : InteractionModuleBase
             gids.WithPlaceholder("Select a Syncshell");
             cb.WithSelectMenu(gids);
         }
+    }
+    
+    private async Task<SelectMenuBuilder> MakeGroupSelectionV2(LaciDbContext db, string customId)
+    {
+        var primary = (await db.LodeStoneAuth.Include(u => u.User).SingleAsync(u => u.DiscordId == Context.User.Id).ConfigureAwait(false)).User;
+        var secondary = await db.Auth.Include(u => u.User).Where(u => u.PrimaryUserUID == primary.UID).Select(u => u.User).ToListAsync().ConfigureAwait(false);
+        var primaryGids = (await db.Groups.Include(u => u.Owner).Where(u => u.OwnerUID == primary.UID).ToListAsync().ConfigureAwait(false));
+        var secondaryGids = (await db.Groups.Include(u => u.Owner).Where(u => secondary.Select(u => u.UID).Contains(u.OwnerUID)).ToListAsync().ConfigureAwait(false));
+        SelectMenuBuilder gids = new();
+        if (primaryGids.Any() || secondaryGids.Any())
+        {
+            foreach (var item in primaryGids)
+            {
+                gids.AddOption(item.Alias ?? item.GID, item.GID, (item.Alias == null ? string.Empty : item.GID) + $" ({item.Owner.Alias ?? item.Owner.UID})", new Emoji("1️⃣"));
+            }
+            foreach (var item in secondaryGids)
+            {
+                gids.AddOption(item.Alias ?? item.GID, item.GID, (item.Alias == null ? string.Empty : item.GID) + $" ({item.Owner.Alias ?? item.Owner.UID})", new Emoji("2️⃣"));
+            }
+            gids.WithCustomId(customId);
+            gids.WithPlaceholder("Select a Syncshell");
+        }
+        
+        return gids;
     }
 
     private async Task<string> GenerateLodestoneAuth(ulong discordid, string hashedLodestoneId, LaciDbContext dbContext)

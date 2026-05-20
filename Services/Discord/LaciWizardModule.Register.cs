@@ -24,20 +24,32 @@ public partial class LaciWizardModule
         _logger.LogInformation("{method}:{userId}", nameof(ComponentRegister), Context.Interaction.User.Id);
 
         var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
+        
+        var components = Wrap(
+            CreateResponse(Color.Blue)
+                .WithTextDisplay("## Registration")
+                .WithTextDisplay($"You are about to register a service account with the {serverName} server." +
+                                 $"{Environment.NewLine}" +
+                                 $"Please follow the bot instructions precisely to ensure that the registration goes smoothly.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                .WithActionRow([
+                    new ButtonBuilder
+                    {
+                        Label = "Start Registration",
+                        // We swap this back to wizard-register-start once we re-add authentication
+                        CustomId = "wizard-register-verify-check:OK",
+                        Emote = new Emoji("🌒"),
+                        Style = ButtonStyle.Primary,
+                    },
+                    MakeHomeV2(),
+                ])
+        );
+        
 
-        EmbedBuilder eb = new();
-        eb.WithColor(Color.Blue);
-        eb.WithTitle("Start Registration");
-        eb.WithDescription($"Here you can start the registration process with the {serverName} server of this Discord." + Environment.NewLine + Environment.NewLine
-            + "- Do not use this on mobile because you will need to be able to copy the generated secret key" + Environment.NewLine
-            + "# Follow the bot instructions precisely. Slow down and read.");
-        ComponentBuilder cb = new();
-        AddHome(cb);
-        // cb.WithButton("Start Registration", "wizard-register-start", ButtonStyle.Primary, emote: new Emoji("🌒"));
-        cb.WithButton("Register", "wizard-register-verify-check:OK", ButtonStyle.Primary, emote: new Emoji("🌒"));
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
+        await ModifyInteractionV2(components).ConfigureAwait(false);
     }
-
+    
+    // TODO Redo this for next
     [ComponentInteraction("wizard-register-start")]
     public async Task ComponentRegisterStart()
     {
@@ -59,6 +71,7 @@ public partial class LaciWizardModule
         await RespondWithModalAsync<LodestoneModal>("wizard-register-lodestone-modal").ConfigureAwait(false);
     }
 
+    // TODO Redo this for next
     [ModalInteraction("wizard-register-lodestone-modal")]
     public async Task ModalRegister(LodestoneModal lodestoneModal)
     {
@@ -76,6 +89,7 @@ public partial class LaciWizardModule
         await ModifyModalInteraction(eb, cb).ConfigureAwait(false);
     }
 
+    // TODO Redo this for next
     [ComponentInteraction("wizard-register-verify:*")]
     public async Task ComponentRegisterVerify(string verificationCode)
     {
@@ -96,7 +110,7 @@ public partial class LaciWizardModule
             + "__This will not advance automatically, you need to press \"Check\".__");
         await ModifyInteraction(eb, cb).ConfigureAwait(false);
     }
-
+    
     [ComponentInteraction("wizard-register-verify-check:*")]
     public async Task ComponentRegisterVerifyCheck(string verificationCode)
     {
@@ -111,17 +125,25 @@ public partial class LaciWizardModule
         var isRegistrationLocked = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.LockRegistrationToRole), false);
         var serverName = _servicesConfig.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
 
+        ComponentBuilderV2 components;
+
         if (isRegistrationLocked)
         {
-            bool hasAccess = false;
+            var hasAccess = false;
             var registrationRole = _servicesConfig.GetValueOrDefault<ulong?>(nameof(ServicesConfiguration.DiscordRegistrationRole), null!);
             if (registrationRole == null)
             {
-                eb.WithColor(Color.Red);
-                eb.WithTitle("Invalid Service Configuration");
-                eb.WithDescription("The service was set up with an invalid configuration. Role registration lock has been enabled, but no role has been specified.");
-                AddHome(cb);
-                await ModifyInteraction(eb, cb).ConfigureAwait(false);
+                components = Wrap(
+                    CreateResponse(Color.Red)
+                        .WithTextDisplay("## Invalid Service Configuration")
+                        .WithTextDisplay("The service was set up with an invalid configuration. Role registration lock has been enabled, but no role has been specified.")
+                        .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                        .WithActionRow([
+                            MakeHomeV2(),
+                        ])
+                    );
+
+                await ModifyInteractionV2(components).ConfigureAwait(false);
                 return;
             }
 
@@ -133,48 +155,61 @@ public partial class LaciWizardModule
 
             if (!hasAccess)
             {
-                eb.WithColor(Color.Red);
-                eb.WithTitle("Not Authorized");
-                eb.WithDescription($"You can not register without the <@&{registrationRole}> role.");
-                AddHome(cb);
-                await ModifyInteraction(eb, cb).ConfigureAwait(false);
+                
+                components = Wrap(
+                    CreateResponse(Color.Red)
+                        .WithTextDisplay("## Not AUthorized")
+                        .WithTextDisplay($"You can not register without the <@&{registrationRole}> role.")
+                        .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                        .WithActionRow([
+                            MakeHomeV2(),
+                        ])
+                );
+                
+                await ModifyInteractionV2(components).ConfigureAwait(false);
                 return;
             }
         }
-
-
-
 
         eb.WithColor(Color.Green);
         using var db = await GetDbContext().ConfigureAwait(false);
         var (uid, key) = await HandleAddUser(db).ConfigureAwait(false);
 
-        eb.WithTitle($"Registration successful, your UID: {uid}");
-        eb.WithDescription("Click this link to quickly open up the Laci onboarding UI and connect to this service."
-                                     + Environment.NewLine + Environment.NewLine
-                                     + $"{PluginHttpServerData.Hostname}:{PluginHttpServerData.Port}/laci/join?uri={Uri.EscapeDataString(_serverConfig.GetValue<Uri>(nameof(ServerConfiguration.ServerPublicUri)).ToString())}&secretkey={key}"
-                                     + Environment.NewLine + Environment.NewLine
-                                     + "Already connected to the server? Use the secret key below. **If you lose it, you will have to recover your account through this bot.**"
-                                     + Environment.NewLine + Environment.NewLine
-                                     + $"||**`{key}`**||"
-                                     + Environment.NewLine + Environment.NewLine
-                                     + "**__Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**"
-                                     + Environment.NewLine + Environment.NewLine
-                                     + "If you want to continue using secret key authentication, enter this key in Laci Synchroni or click on the link above and hit save to connect to the service."
-                                     + Environment.NewLine + Environment.NewLine
-                                     + "__NOTE: The Secret Key only contains the letters ABCDEF and numbers 0 - 9.__"
-                                     + Environment.NewLine + Environment.NewLine
-                                     + "**DO NOT SHARE ANY OF THIS INFO WITH ANYONE OR YOUR ACCOUNT MAY BE COMPROMISED.**"
-                                     + Environment.NewLine
-                                     + "Have fun.");
-        AddHome(cb);
+        var publicServerUri = _serverConfig.GetValue<Uri>(nameof(ServerConfiguration.ServerPublicUri));
+        
+        components = Wrap(
+            CreateResponse(Color.Green)
+                .WithTextDisplay($"## Registration successful, your UID: {uid}")
+                .WithTextDisplay($"Click this link to to quickly open up the Laci onboarding UI and connect to this service." +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"{PluginHttpServerData.Hostname}:{PluginHttpServerData.Port}/laci/join?uri={Uri.EscapeDataString(publicServerUri.ToString())}&secretKey={key}" +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"Already connected to the server? Use the secret key below. **If you lose it, you will have to recover your account through this bot.**" +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"||**`{key}`**||" +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"**__Using the suggested OAuth2 authentication in Laci, you do not need to use this Secret Key.__**" +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"If you want to continue using secret key authentication, enter this key in Laci Synchroni or click on the link above and hit save to connect to the service." +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"__NOTE: The Secret Key only contains letters ABCDEF and numbers 0 - 9.__" +
+                                 $"{Environment.NewLine}{Environment.NewLine}" +
+                                 $"**DO NOT SHARE ANY OF THIS INFO WITH ANYONE OR YOUR ACCOUNT MAY BE COMPROMISED.**" +
+                                 $"{Environment.NewLine}" +
+                                 $"Have fun.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                .WithActionRow([
+                    MakeHomeV2(),
+                ])
+        );
+        
         registerSuccess = true;
 
-        await ModifyInteraction(eb, cb).ConfigureAwait(false);
-        if (registerSuccess)
-            await _botServices.AddRegisteredRoleAsync(Context.Interaction.User).ConfigureAwait(false);
+        await ModifyInteractionV2(components).ConfigureAwait(false);
+        await _botServices.AddRegisteredRoleAsync(Context.Interaction.User).ConfigureAwait(false);
     }
 
+    // TODO Redo this for next
     private async Task<(bool, string)> HandleRegisterModalAsync(EmbedBuilder embed, LodestoneModal arg)
     {
         var lodestoneId = ParseCharacterIdFromLodestoneUrl(arg.LodestoneUrl);
@@ -227,6 +262,7 @@ public partial class LaciWizardModule
         return (true, lodestoneAuth);
     }
 
+    // TODO Redo this for next
     private async Task HandleVerifyAsync(ulong userid, string authString, DiscordBotServices services)
     {
         using var req = new HttpClient();
@@ -264,6 +300,7 @@ public partial class LaciWizardModule
         }
     }
 
+    // TODO Redo this for next
     private async Task<(string, string)> HandleAddUser(LaciDbContext db)
     {
         var lodestoneAuth = db.LodeStoneAuth.SingleOrDefault(u => u.DiscordId == Context.User.Id);
