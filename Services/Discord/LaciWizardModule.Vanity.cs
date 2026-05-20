@@ -9,68 +9,83 @@ namespace LaciSynchroni.Services.Discord;
 
 public partial class LaciWizardModule
 {
+    // public static Regex UIDRegex = new Regex(@"^[_\-a-zA-Z0-9]{5,15}$", RegexOptions.ECMAScript);
+    [GeneratedRegex(@"^[_\-a-zA-Z0-9]{5,15}$", RegexOptions.ECMAScript, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex UidRegex();
+    
     [ComponentInteraction("wizard-vanity")]
     public async Task ComponentVanity()
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
-        using var db = await GetDbContext().ConfigureAwait(false);
-
-        _logger.LogInformation("{method}:{userId}", nameof(ComponentVanity), Context.Interaction.User.Id);
-
-        StringBuilder sb = new();
-        var user = await Context.Guild.GetUserAsync(Context.User.Id).ConfigureAwait(false);
-        bool userIsInVanityRole = _botServices.VanityRoles.Keys.Any(u => user.RoleIds.Contains(u.Id)) || !_botServices.VanityRoles.Any();
-        if (!userIsInVanityRole)
+        if (!await ValidateInteraction().ConfigureAwait(false))
         {
-            sb.AppendLine("To be able to set Vanity IDs you must have one of the following roles:");
-            foreach (var role in _botServices.VanityRoles)
+            return;
+        }
+
+        var db = await GetDbContext().ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            _logger.LogInformation("{method}:{userId}", nameof(ComponentVanity), Context.Interaction.User.Id);
+
+            StringBuilder sb = new();
+            var user = await Context.Guild.GetUserAsync(Context.User.Id).ConfigureAwait(false);
+            var userIsInVanityRole = _botServices.VanityRoles.Keys.Any(u => user.RoleIds.Contains(u.Id)) || !_botServices.VanityRoles.Any();
+            if (!userIsInVanityRole)
             {
-                sb.Append("- ").Append(role.Key.Mention).Append(" (").Append(role.Value).AppendLine(")");
+                sb.AppendLine("To be able to set Vanity IDs you must have one of the following roles:");
+                foreach (var role in _botServices.VanityRoles)
+                {
+                    sb.Append("- ").Append(role.Key.Mention).Append(" (").Append(role.Value).AppendLine(")");
+                }
             }
-        }
-        else
-        {
-            sb.AppendLine("Your current roles on this server allow you to set Vanity IDs.");
-        }
+            else
+            {
+                sb.AppendLine("Your current roles on this server allow you to set Vanity IDs.");
+            }
 
-        var container =
-            CreateResponse(Color.Blue)
-                .WithTextDisplay("## Vanity IDs")
-                .WithTextDisplay("You are able to set your Vanity IDs here." +
-                                 $"{Environment.NewLine}" +
-                                 $"Vanity IDs are a way to customize your displayed UID or Syncshell ID to others.")
-                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
-                .WithTextDisplay(sb.ToString())
-                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true);
+            var container =
+                CreateResponse(Color.Blue)
+                    .WithTextDisplay("## Vanity IDs")
+                    .WithTextDisplay("You are able to set your Vanity IDs here." +
+                                     $"{Environment.NewLine}" +
+                                     $"Vanity IDs are a way to customize your displayed UID or Syncshell ID to others.")
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                    .WithTextDisplay(sb.ToString())
+                    .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true);
 
-        if (userIsInVanityRole)
-        {
-            container.WithActionRow([await MakeUserSelectionV2(db, "wizard-vanity-uid").ConfigureAwait(false)]);
-            container.WithActionRow([await MakeGroupSelectionV2(db, "wizard-vanity-gid").ConfigureAwait(false)]);
+            if (userIsInVanityRole)
+            {
+                container.WithActionRow([await MakeUserSelectionV2(db, "wizard-vanity-uid").ConfigureAwait(false)]);
+                container.WithActionRow([await MakeGroupSelectionV2(db, "wizard-vanity-gid").ConfigureAwait(false)]);
+            }
+
+            container.WithActionRow([
+                MakeHomeV2(),
+            ]);
+
+            await ModifyInteractionV2(Wrap(container)).ConfigureAwait(false);
         }
-
-        container.WithActionRow([
-            MakeHomeV2(),
-        ]);
-        
-        await ModifyInteractionV2(Wrap(container)).ConfigureAwait(false);
     }
 
     [ComponentInteraction("wizard-vanity-uid")]
     public async Task SelectionVanityUid(string uid)
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        if (!await ValidateInteraction().ConfigureAwait(false))
+        {
+            return;
+        }
 
         _logger.LogInformation("{method}:{userId}:{uid}", nameof(SelectionVanityUid), Context.Interaction.User.Id, uid);
 
-        using var db = await GetDbContext().ConfigureAwait(false);
-        var user = db.Users.Single(u => u.UID == uid);
+        var db = await GetDbContext().ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var user = db.Users.Single(u => u.UID == uid);
 
         var components = Wrap(CreateResponse()
             .WithTextDisplay("## Vanity IDs")
             .WithTextDisplay($"You are setting a Vanity UID for **`{uid}`**." +
                              $"{Environment.NewLine}" +
-                             $"The current Vanity UID is set to: **`{(user.Alias == null ? "No Vanity UID set" : user.Alias)}`**")
+                             $"The current Vanity UID is set to: **`{user.Alias ?? "No Vanity UID set"}`**")
             .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
             .WithActionRow([
                 new ButtonBuilder
@@ -91,12 +106,16 @@ public partial class LaciWizardModule
         );
 
         await ModifyInteractionV2(components).ConfigureAwait(false);
+        }
     }
 
     [ComponentInteraction("wizard-vanity-uid-set:*")]
     public async Task SelectionVanityUidSet(string uid)
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        if (!await ValidateInteraction().ConfigureAwait(false))
+        {
+            return;
+        }
 
         _logger.LogInformation("{method}:{userId}:{uid}", nameof(SelectionVanityUidSet), Context.Interaction.User.Id, uid);
 
@@ -106,21 +125,23 @@ public partial class LaciWizardModule
     [ModalInteraction("wizard-vanity-uid-modal:*")]
     public async Task ConfirmVanityUidModal(string uid, VanityUidModal modal)
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        if (!await ValidateInteraction().ConfigureAwait(false))
+        {
+            return;
+        }
 
         _logger.LogInformation("{method}:{userId}:{uid}:{vanity}", nameof(ConfirmVanityUidModal), Context.Interaction.User.Id, uid, modal.DesiredVanityUID);
-
-        EmbedBuilder eb = new();
-        ComponentBuilder cb = new();
+        
         var desiredVanityUid = modal.DesiredVanityUID;
-        using var db = await GetDbContext().ConfigureAwait(false);
-        bool canAddVanityId = !db.Users.Any(u => u.UID == modal.DesiredVanityUID || u.Alias == modal.DesiredVanityUID);
+        var db = await GetDbContext().ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var canAddVanityId = !db.Users.Any(u => u.UID == modal.DesiredVanityUID || u.Alias == modal.DesiredVanityUID);
 
         var container = CreateResponse()
             .WithTextDisplay("## Vanity IDs");
-
-        Regex rgx = new(@"^[_\-a-zA-Z0-9]{5,15}$", RegexOptions.ECMAScript);
-        if (!rgx.Match(desiredVanityUid).Success)
+        
+        if (!UidRegex().Match(desiredVanityUid).Success)
         {
             container
                 .WithTextDisplay("### Invalid Vanity UID" +
@@ -185,6 +206,7 @@ public partial class LaciWizardModule
         }
 
         await ModifyModalInteractionV2(Wrap(container)).ConfigureAwait(false);
+        }
     }
 
     [ComponentInteraction("wizard-vanity-gid")]
@@ -192,14 +214,16 @@ public partial class LaciWizardModule
     {
         _logger.LogInformation("{method}:{userId}:{uid}", nameof(SelectionVanityGid), Context.Interaction.User.Id, gid);
 
-        using var db = await GetDbContext().ConfigureAwait(false);
-        var group = db.Groups.Single(u => u.GID == gid);
-        
+        var db = await GetDbContext().ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var group = db.Groups.Single(u => u.GID == gid);
+
         var components = Wrap(CreateResponse()
             .WithTextDisplay("## Vanity IDs")
             .WithTextDisplay($"You are setting a Vanity GID for **`{gid}`**." +
                              $"{Environment.NewLine}" +
-                             $"The current Vanity GID is set to: **`{(group.Alias == null ? "No Vanity UID set" : group.Alias)}`**")
+                             $"The current Vanity GID is set to: **`{group.Alias ?? "No Vanity UID set"}`**")
             .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
             .WithActionRow([
                 new ButtonBuilder
@@ -220,12 +244,16 @@ public partial class LaciWizardModule
         );
 
         await ModifyInteractionV2(components).ConfigureAwait(false);
+        }
     }
 
     [ComponentInteraction("wizard-vanity-gid-set:*")]
     public async Task SelectionVanityGidSet(string gid)
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        if (!await ValidateInteraction().ConfigureAwait(false))
+        {
+            return;
+        }
 
         _logger.LogInformation("{method}:{userId}:{gid}", nameof(SelectionVanityGidSet), Context.Interaction.User.Id, gid);
 
@@ -235,21 +263,23 @@ public partial class LaciWizardModule
     [ModalInteraction("wizard-vanity-gid-modal:*")]
     public async Task ConfirmVanityGidModal(string gid, VanityGidModal modal)
     {
-        if (!(await ValidateInteraction().ConfigureAwait(false))) return;
+        if (!await ValidateInteraction().ConfigureAwait(false))
+        {
+            return;
+        }
 
         _logger.LogInformation("{method}:{userId}:{gid}:{vanity}", nameof(ConfirmVanityGidModal), Context.Interaction.User.Id, gid, modal.DesiredVanityGID);
 
-        EmbedBuilder eb = new();
-        ComponentBuilder cb = new();
         var desiredVanityGid = modal.DesiredVanityGID;
-        using var db = await GetDbContext().ConfigureAwait(false);
-        bool canAddVanityId = !db.Groups.Any(u => u.GID == modal.DesiredVanityGID || u.Alias == modal.DesiredVanityGID);
-        
+        var db = await GetDbContext().ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var canAddVanityId = !db.Groups.Any(u => u.GID == modal.DesiredVanityGID || u.Alias == modal.DesiredVanityGID);
+
         var container = CreateResponse()
             .WithTextDisplay("## Vanity IDs");
-
-        Regex rgx = new(@"^[_\-a-zA-Z0-9]{5,20}$", RegexOptions.ECMAScript);
-        if (!rgx.Match(desiredVanityGid).Success)
+        
+        if (!UidRegex().IsMatch(desiredVanityGid))
         {
             container
                 .WithTextDisplay("### Invalid Vanity Syncshell ID" +
@@ -314,5 +344,6 @@ public partial class LaciWizardModule
         }
 
         await ModifyModalInteractionV2(Wrap(container)).ConfigureAwait(false);
+        }
     }
 }
