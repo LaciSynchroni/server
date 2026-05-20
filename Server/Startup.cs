@@ -101,7 +101,7 @@ public class Startup
         // configure services based on main server status
         ConfigureServicesBasedOnShardType(services, config, isMainServer);
 
-        services.AddSingleton(s => new LaciCensus(s.GetRequiredService<ILogger<LaciCensus>>()));
+        services.AddSingleton(s => new LaciCensus(s.GetRequiredService<ILogger<LaciCensus>>(), config));
         services.AddHostedService(p => p.GetRequiredService<LaciCensus>());
 
         if (isMainServer)
