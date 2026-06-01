@@ -37,7 +37,9 @@ public class SecretKeyAuthenticatorService
         var authUser = await context.Auth.SingleOrDefaultAsync(u => u.UserUID == primaryUid).ConfigureAwait(false);
         if (authUser == null) return AuthenticationFailure(ip!);
 
-        var authReply = await context.Auth.Include(a => a.User).AsNoTracking()
+        var authReply = await context.Auth
+            .Where(auth => auth == authUser)
+            .Include(a => a.User).AsNoTracking()
             .SingleOrDefaultAsync(u => u.UserUID == requestedUid).ConfigureAwait(false);
         return await GetAuthReply(ip!, context, authReply);
     }
