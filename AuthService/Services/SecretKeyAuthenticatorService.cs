@@ -33,14 +33,19 @@ public class SecretKeyAuthenticatorService
         var checkOnIp = FailOnIp(ip);
         if (checkOnIp != null) return checkOnIp;
 
-        using var context = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var authUser = await context.Auth.SingleOrDefaultAsync(u => u.UserUID == primaryUid).ConfigureAwait(false);
-        if (authUser == null) return AuthenticationFailure(ip!);
+        await using var context = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
 
         var authReply = await context.Auth
-            .Where(auth => auth == authUser)
+            // The primaryUid is verified, but auth.PrimaryUserUID is only set for secondary accounts
+            // So the accounts belonging to the primaryUid are either those where UserUID = primary or PrimaryUserUID = primary
+            .Where(auth => auth.UserUID == primaryUid || auth.PrimaryUserUID == primaryUid)
             .Include(a => a.User).AsNoTracking()
             .SingleOrDefaultAsync(u => u.UserUID == requestedUid).ConfigureAwait(false);
+        if (authReply == null)
+        {
+            return AuthenticationFailure(ip!);
+        }
+
         return await GetAuthReply(ip!, context, authReply);
     }
 
