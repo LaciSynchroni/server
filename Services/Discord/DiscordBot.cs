@@ -2,13 +2,13 @@
 using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
-using Microsoft.EntityFrameworkCore;
 using LaciSynchroni.Shared.Data;
 using LaciSynchroni.Shared.Models;
 using LaciSynchroni.Shared.Services;
 using LaciSynchroni.Shared.Utils.Configuration;
-using StackExchange.Redis;
 using LaciSynchroni.Shared.Utils.Configuration.Services;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 namespace LaciSynchroni.Services.Discord;
 
@@ -170,7 +170,7 @@ internal class DiscordBot : IHostedService
         {
             _logger.LogInformation("Creating Wizard: Checking message id {id}, author is: {author}, hasEmbeds: {embeds}", msg.Id, msg.Author.Id, msg.Embeds.Any());
             if (msg.Author.Id == _discordClient.CurrentUser.Id
-                && msg.Embeds.Any())
+                && msg.Components.Any())
             {
                 message = await socketchannel.GetMessageAsync(msg.Id).ConfigureAwait(false) as IUserMessage;
                 break;
@@ -185,16 +185,32 @@ internal class DiscordBot : IHostedService
     private async Task GenerateOrUpdateWizardMessage(SocketTextChannel channel, IUserMessage? prevMessage)
     {
         var serverName = _configurationService.GetValueOrDefault(nameof(ServicesConfiguration.ServerName), "Laci Synchroni");
-        EmbedBuilder eb = new EmbedBuilder();
-        eb.WithTitle($"{serverName} Services Bot Interaction Service");
-        eb.WithDescription("Press \"Start\" to interact with this bot!" + Environment.NewLine + Environment.NewLine
-            + $"You can handle all of your {serverName} account needs in this server through the easy to use interactive bot prompt. Just follow the instructions!");
-        eb.WithThumbnailUrl("https://raw.githubusercontent.com/LaciSynchroni/repo/main/images/icon.png");
-        var cb = new ComponentBuilder();
-        cb.WithButton("Start", style: ButtonStyle.Primary, customId: "wizard-captcha:true", emote: Emoji.Parse("➡️"));
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(
+                new ContainerBuilder()
+                .WithMediaGallery(new MediaGalleryBuilder()
+                    .AddItem(new()
+                    {
+                        Media = "https://raw.githubusercontent.com/LaciSynchroni/wiki/main/static/img/laci_synchroni_banner.jpg",
+                    }))
+                .WithTextDisplay($"# {serverName} Self-Service")
+                .WithTextDisplay("Using the self-service, you can handle all of your account needs of this instance through the self-service prompt.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Large, isDivider: true)
+                .WithTextDisplay("-# Press **➡️ Start** to start a new self-service session.")
+                .WithSeparator(spacing: SeparatorSpacingSize.Small, isDivider: false)
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("Start")
+                        .WithStyle(ButtonStyle.Primary)
+                        .WithCustomId("wizard-captcha:true")
+                        .WithEmote(Emoji.Parse("➡️")),
+                ])
+            );
+
         if (prevMessage == null)
         {
-            var msg = await channel.SendMessageAsync(embed: eb.Build(), components: cb.Build()).ConfigureAwait(false);
+            var msg = await channel.SendMessageAsync(components: components.Build()).ConfigureAwait(false);
             try
             {
                 await msg.PinAsync().ConfigureAwait(false);
@@ -208,8 +224,7 @@ internal class DiscordBot : IHostedService
         {
             await prevMessage.ModifyAsync(p =>
             {
-                p.Embed = eb.Build();
-                p.Components = cb.Build();
+                p.Components = components.Build();
             }).ConfigureAwait(false);
         }
     }

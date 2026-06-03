@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: laci
       POSTGRES_PASSWORD: changeit
     volumes:
-      - postgresql:/var/lib/postgresql/data
+      - postgresql:/var/lib/postgresql
   redis:
     image: redis:latest
     command: [sh, -c, "rm -f /data/dump.rdb && redis-server --save \"\" --appendonly no --requirepass changeit"]
